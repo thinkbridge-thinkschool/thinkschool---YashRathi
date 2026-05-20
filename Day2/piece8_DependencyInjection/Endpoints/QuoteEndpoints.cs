@@ -32,21 +32,15 @@ public static class QuoteEndpoints
             IClock clock,
             CancellationToken cancellationToken) =>
         {
-            var errors = new Dictionary<string, string[]>();
-            if (string.IsNullOrWhiteSpace(request.Author))
-                errors["author"] = ["Author is required"];
-            if (string.IsNullOrWhiteSpace(request.Text))
-                errors["text"] = ["Text is required"];
-            if (errors.Count > 0)
-                return Results.ValidationProblem(errors);
+            var result = Quote.Create(request.Author, request.Text, clock.UtcNow);
+            if (!result.IsSuccess)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["quote"] = [result.Error!.Message]
+                });
+
             logger.LogInformation("Creating quote for author {Author}", request.Author);
-            var quote = new Quote
-            {
-                Author = request.Author,
-                Text = request.Text,
-                CreatedAt = clock.UtcNow
-            };
-            var createdQuote = await repository.AddAsync(quote, cancellationToken);
+            var createdQuote = await repository.AddAsync(result.Value!, cancellationToken);
             return Results.Created($"/api/quotes/{createdQuote.Id}", createdQuote);
         });
         group.MapDelete("/{id:int}", async (
