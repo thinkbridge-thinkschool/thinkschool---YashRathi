@@ -11,9 +11,7 @@ public static class InfrastructureExtensions
         IConfiguration configuration)
     {
         services.AddDbContext<AppDbContext>(options =>
-        {
-            options.UseSqlite("Data Source=quotes.db");
-        });
+            options.UseSqlite("Data Source=quotes.db"));
         services.AddScoped<IQuoteRepository, QuoteRepository>();
         services.AddSingleton<IClock, SystemClock>();
         services.AddTransient<IRequestLogger, RequestLogger>();
