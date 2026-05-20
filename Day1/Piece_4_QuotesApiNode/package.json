@@ -1,0 +1,23 @@
+{
+  "name": "quotesapinode",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Node 24 + TypeScript strict minimal API",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "tsx src/server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "pino": "^10.3.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.8.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
