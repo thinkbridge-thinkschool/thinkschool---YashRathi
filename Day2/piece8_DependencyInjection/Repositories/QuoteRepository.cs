@@ -12,6 +12,7 @@ public class QuoteRepository : IQuoteRepository
     public async Task<List<Quote>> GetAllAsync(int page, int size, CancellationToken cancellationToken)
     {
         return await _context.Quotes
+            .Where(q => !q.IsDeleted)
             .Skip((page - 1) * size)
             .Take(size)
             .ToListAsync(cancellationToken);
@@ -19,7 +20,7 @@ public class QuoteRepository : IQuoteRepository
     public async Task<Quote?> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
         return await _context.Quotes
-            .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(q => q.Id == id && !q.IsDeleted, cancellationToken);
     }
     public async Task<Quote> AddAsync(Quote quote, CancellationToken cancellationToken)
     {
@@ -30,9 +31,9 @@ public class QuoteRepository : IQuoteRepository
     public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken)
     {
         var quote = await _context.Quotes
-            .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(q => q.Id == id && !q.IsDeleted, cancellationToken);
         if (quote is null) return false;
-        _context.Quotes.Remove(quote);
+        quote.SoftDelete();
         await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
