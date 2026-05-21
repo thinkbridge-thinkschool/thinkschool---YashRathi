@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -149,10 +150,17 @@ public class CancellationTests
         var requestTask = client.GetAsync($"/api/collections/{Guid.NewGuid()}", cts.Token);
 
         await serverStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var sw = Stopwatch.StartNew();
         cts.Cancel();
 
         // Assert (client side) — operation did not complete normally
         await Assert.ThrowsAsync<TaskCanceledException>(() => requestTask);
+        sw.Stop();
+
+        // Cancellation must propagate fast — not just eventually.
+        Assert.True(sw.ElapsedMilliseconds < 500,
+            $"Cancellation took {sw.ElapsedMilliseconds}ms — token is not flowing through the pipeline.");
 
         // Assert (server side) — CancellationToken propagated all the way to the repository
         // WaitAsync throws if the signal never arrives within the timeout.
@@ -183,10 +191,16 @@ public class CancellationTests
         var requestTask = client.PostAsync("/api/collections/", body, cts.Token);
 
         await serverStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var sw = Stopwatch.StartNew();
         cts.Cancel();
 
         // Assert (client side)
         await Assert.ThrowsAsync<TaskCanceledException>(() => requestTask);
+        sw.Stop();
+
+        Assert.True(sw.ElapsedMilliseconds < 500,
+            $"Cancellation took {sw.ElapsedMilliseconds}ms — token is not flowing through the pipeline.");
 
         // Assert (server side)
         await serverCancelled.Task.WaitAsync(TimeSpan.FromSeconds(2));
