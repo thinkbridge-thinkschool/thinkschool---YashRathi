@@ -36,3 +36,15 @@ jobs:
 
       - name: Run unit tests (piece19)
         run: dotnet test Day3/piece19_xUnit/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-build --verbosity normal
+
+      - name: Pull SQL Server 2022 image
+        run: docker pull mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Restore piece21 Testcontainers integration tests
+        run: dotnet restore Day3/piece21_Docker/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj
+
+      - name: Build piece21 Testcontainers integration tests
+        run: dotnet build Day3/piece21_Docker/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-restore
+
+      - name: Run piece21 Testcontainers integration tests
+        run: dotnet test Day3/piece21_Docker/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-build --verbosity normal
