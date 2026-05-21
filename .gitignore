@@ -16,7 +16,8 @@ obj/
 # Node modules
 node_modules/
 
-# Database temp files
+# Database files
+*.db
 *.db-shm
 *.db-wal
 
