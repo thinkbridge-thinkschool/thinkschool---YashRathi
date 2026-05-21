@@ -27,3 +27,12 @@ jobs:
 
       - name: Run integration tests
         run: dotnet test Day3/piece17_CI_pipeline/QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --verbosity normal
+
+      - name: Restore unit tests (piece19)
+        run: dotnet restore Day3/piece19_xUnit/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj
+
+      - name: Build unit tests (piece19)
+        run: dotnet build Day3/piece19_xUnit/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-restore
+
+      - name: Run unit tests (piece19)
+        run: dotnet test Day3/piece19_xUnit/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-build --verbosity normal
