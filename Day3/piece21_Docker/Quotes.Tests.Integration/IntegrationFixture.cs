@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,7 +54,8 @@ internal sealed class IntegrationFixture : WebApplicationFactory<Program>
                 services.Remove(d);
 
             services.AddDbContext<AppDbContext>(opts =>
-                opts.UseSqlServer(_connectionString));
+                opts.UseSqlServer(_connectionString)
+                    .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
 
             // Freeze time so token expiry is predictable in tests.
             var clockDescriptor = services.SingleOrDefault(
