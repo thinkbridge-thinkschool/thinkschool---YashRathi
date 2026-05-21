@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -40,11 +41,16 @@ internal sealed class IntegrationFixture : WebApplicationFactory<Program>
     {
         builder.ConfigureServices(services =>
         {
-            // Swap the production SQLite registration for an isolated SQL Server database.
-            var dbDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-            if (dbDescriptor is not null)
-                services.Remove(dbDescriptor);
+            // EF Core 8+ registers IDbContextOptionsConfiguration<T> (the config delegate)
+            // rather than DbContextOptions<T> directly. Removing only DbContextOptions<T>
+            // leaves the SQLite config delegate behind, causing a dual-provider conflict.
+            // Remove both to cleanly replace SQLite with SQL Server.
+            var toRemove = services
+                .Where(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>)
+                         || d.ServiceType == typeof(IDbContextOptionsConfiguration<AppDbContext>))
+                .ToList();
+            foreach (var d in toRemove)
+                services.Remove(d);
 
             services.AddDbContext<AppDbContext>(opts =>
                 opts.UseSqlServer(_connectionString));
