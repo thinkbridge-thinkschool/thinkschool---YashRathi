@@ -20,10 +20,10 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore QuotesApi.Tests/QuotesApi.Tests.csproj
+        run: dotnet restore Day3/piece17_CI_pipeline/QuotesApi.Tests/QuotesApi.Tests.csproj
 
       - name: Build
-        run: dotnet build QuotesApi.Tests/QuotesApi.Tests.csproj --no-restore
+        run: dotnet build Day3/piece17_CI_pipeline/QuotesApi.Tests/QuotesApi.Tests.csproj --no-restore
 
       - name: Run integration tests
-        run: dotnet test QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --verbosity normal
+        run: dotnet test Day3/piece17_CI_pipeline/QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --verbosity normal
