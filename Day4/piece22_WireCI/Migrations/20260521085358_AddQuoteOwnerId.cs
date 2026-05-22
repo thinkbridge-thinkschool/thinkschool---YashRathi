@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -6,7 +5,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace QuotesApi.Migrations
 {
     /// <inheritdoc />
-    [ExcludeFromCodeCoverage]
     public partial class AddQuoteOwnerId : Migration
     {
         /// <inheritdoc />
