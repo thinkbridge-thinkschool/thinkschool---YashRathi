@@ -6,6 +6,10 @@
         <Configuration>
           <!-- Exclude auto-generated source files produced by source generators in obj/ -->
           <ExcludeByFile>**/obj/**/*.cs</ExcludeByFile>
+          <!-- Exclude the OpenAPI XML comment source-generator class.                    -->
+          <!-- It lives in obj/ but its PDB path is virtual so ExcludeByFile doesn't     -->
+          <!-- match it. 374 coverable lines, 0 covered — entirely auto-generated glue.  -->
+          <Exclude>[QuotesApi]Microsoft.AspNetCore.OpenApi.Generated</Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
