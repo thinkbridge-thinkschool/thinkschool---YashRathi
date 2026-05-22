@@ -87,6 +87,9 @@ jobs:
       - name: Build
         run: dotnet build Day4/piece22_WireCI/QuotesApi.slnx --no-restore
 
+      - name: Pull SQL Server 2022 image
+        run: docker pull mcr.microsoft.com/mssql/server:2022-latest
+
       - name: Test
         run: dotnet test Day4/piece22_WireCI/QuotesApi.slnx --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --results-directory Day4/piece22_WireCI/TestResults
         env:
