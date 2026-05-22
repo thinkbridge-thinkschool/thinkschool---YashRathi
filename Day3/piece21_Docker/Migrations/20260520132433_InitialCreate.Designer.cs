@@ -30,8 +30,7 @@ namespace QuotesApi.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("CreatedAt");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("INTEGER");
@@ -51,8 +50,7 @@ namespace QuotesApi.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("TEXT");
+                    b.Property<DateTimeOffset>("ExpiresAt");
 
                     b.Property<string>("FamilyId")
                         .IsRequired()
@@ -61,8 +59,7 @@ namespace QuotesApi.Migrations
                     b.Property<string>("ReplacedByToken")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("RevokedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<DateTimeOffset?>("RevokedAt");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
