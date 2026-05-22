@@ -91,7 +91,14 @@ jobs:
         run: docker pull mcr.microsoft.com/mssql/server:2022-latest
 
       - name: Test
-        run: dotnet test Day4/piece22_WireCI/QuotesApi.slnx --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --results-directory Day4/piece22_WireCI/TestResults
+        run: >
+          dotnet test Day4/piece22_WireCI/QuotesApi.slnx
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory Day4/piece22_WireCI/TestResults
+          --
+          DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Exclude="[QuotesApi]QuotesApi.Migrations.*"
         env:
           RYUK_DISABLED: "true"
           TESTCONTAINERS_RYUK_DISABLED: "true"
