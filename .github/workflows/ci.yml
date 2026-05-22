@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main"]
+    branches: ['**']
   pull_request:
     branches: ["main"]
 
@@ -68,3 +68,63 @@ jobs:
 
       - name: Run piece21 SQLite integration tests
         run: dotnet test Day3/piece21_Docker/QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --verbosity normal
+
+  piece22-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Day4/piece22_WireCI/QuotesApi.slnx
+
+      - name: Build
+        run: dotnet build Day4/piece22_WireCI/QuotesApi.slnx --no-restore
+
+      - name: Test
+        run: dotnet test Day4/piece22_WireCI/QuotesApi.slnx --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --results-directory Day4/piece22_WireCI/TestResults
+        env:
+          RYUK_DISABLED: "true"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: piece22-test-results
+          path: Day4/piece22_WireCI/TestResults/**/*.trx
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: piece22-coverage-reports
+          path: Day4/piece22_WireCI/TestResults/**/coverage.cobertura.xml
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Check coverage threshold
+        run: |
+          reportgenerator \
+            "-reports:Day4/piece22_WireCI/TestResults/**/coverage.cobertura.xml" \
+            "-targetdir:Day4/piece22_WireCI/CoverageReport" \
+            "-reporttypes:JsonSummary"
+
+          python3 - <<'EOF'
+          import json, sys
+          with open("Day4/piece22_WireCI/CoverageReport/Summary.json") as f:
+              data = json.load(f)
+          cov = data["summary"]["linecoverage"]
+          print(f"Line coverage: {cov:.1f}%")
+          if cov < 70:
+              print(f"FAIL: {cov:.1f}% is below the required 70% threshold.")
+              sys.exit(1)
+          print(f"PASS: {cov:.1f}% >= 70% — threshold met.")
+          EOF
