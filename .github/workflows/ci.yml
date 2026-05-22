@@ -47,4 +47,24 @@ jobs:
         run: dotnet build Day3/piece21_Docker/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-restore
 
       - name: Run piece21 Testcontainers integration tests
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
         run: dotnet test Day3/piece21_Docker/Quotes.Tests.Integration/Quotes.Tests.Integration.csproj --no-build --verbosity normal
+
+      - name: Restore piece21 unit tests
+        run: dotnet restore Day3/piece21_Docker/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj
+
+      - name: Build piece21 unit tests
+        run: dotnet build Day3/piece21_Docker/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-restore
+
+      - name: Run piece21 unit tests
+        run: dotnet test Day3/piece21_Docker/Quotes.Tests.Unit/Quotes.Tests.Unit.csproj --no-build --verbosity normal
+
+      - name: Restore piece21 SQLite integration tests
+        run: dotnet restore Day3/piece21_Docker/QuotesApi.Tests/QuotesApi.Tests.csproj
+
+      - name: Build piece21 SQLite integration tests
+        run: dotnet build Day3/piece21_Docker/QuotesApi.Tests/QuotesApi.Tests.csproj --no-restore
+
+      - name: Run piece21 SQLite integration tests
+        run: dotnet test Day3/piece21_Docker/QuotesApi.Tests/QuotesApi.Tests.csproj --no-build --verbosity normal
