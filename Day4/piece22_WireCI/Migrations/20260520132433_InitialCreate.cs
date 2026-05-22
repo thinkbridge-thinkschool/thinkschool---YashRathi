@@ -92,6 +92,7 @@ namespace QuotesApi.Migrations
         }
 
         /// <inheritdoc />
+        [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
