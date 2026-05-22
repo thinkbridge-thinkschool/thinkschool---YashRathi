@@ -32,8 +32,7 @@ namespace QuotesApi.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt");
 
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("INTEGER");
+                    b.Property<bool>("IsDeleted");
 
                     b.Property<string>("Text")
                         .IsRequired()
