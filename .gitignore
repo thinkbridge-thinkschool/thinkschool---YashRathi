@@ -21,6 +21,10 @@ node_modules/
 *.db-shm
 *.db-wal
 
+# Test results and coverage reports (generated at runtime — never commit)
+TestResults/
+CoverageReport/
+
 # Logs
 *.log
 
