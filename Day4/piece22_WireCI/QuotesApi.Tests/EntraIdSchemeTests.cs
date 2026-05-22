@@ -53,8 +53,9 @@ public class EntraIdSchemeTests : IAsyncLifetime
 
         var response = await _client.GetAsync("/api/quotes?page=1&size=10");
 
-        // Entra validation fails in the test environment (no real OIDC config),
-        // so 401 is the expected outcome — the important thing is the code path ran.
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        // GET /api/quotes is a public endpoint so it returns 200 even when Entra
+        // validation fails — the important thing is the ForwardDefaultSelector ran
+        // and returned EntraScheme (covering that branch).
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }
