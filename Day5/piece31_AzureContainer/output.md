@@ -1,133 +1,86 @@
-# Azure Setup — Day 5 / Piece 4
+az commands
+1. Create the resource group
+az group create -n thinkschool-rg -l Southeast Asia
 
-## Live URL
+2. Create the Container Apps environment
+az containerapp env create -n thinkschool-env -g thinkschool-rg -l Southeast Asia
 
-https://ca-api-nb3bgcnwnlpwe.lemoncliff-d4727121.southeastasia.azurecontainerapps.io/healthy
+3. Show the environment (JSON)
+az containerapp env show -n thinkschool-env -g thinkschool-rg
 
----
+Output:
 
-# Overview
-
-This project demonstrates deploying an ASP.NET API to Azure Container Apps using `azd up`.
-
-The deployment provisions:
-- Azure Resource Group
-- Azure Container Registry (ACR)
-- Log Analytics Workspace
-- Azure Container Apps Environment
-- Azure Container App
-
-The application is containerized automatically and deployed through Azure Developer CLI (`azd`).
-
----
-
-# azure.yaml
-
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
-
-name: quotes-api
-
-services:
-  api:
-    project: ./QuotesApi
-    language: dotnet
-    host: containerapp
-```
-
----
-
-# Deployment Command
-
-```bash
-azd up
-```
-
----
-
-# azd up Output
-
-```text
-Initialize bicep provider
-
-Provisioning and deploying (azd up)
-Packaging overlaps with provisioning for faster execution.
-
-  api: Packaging
-Initialize bicep provider
-  api: Packaging (Building Docker image)
-Creating a deployment plan
-Comparing deployment state
-Validating deployment
-  api: Packaging (Tagging container image)
-Creating/Updating resources
-
-  (✓) Done: Resource group: rg-quotesapi-dev
-  (✓) Done: Container Registry: acrnb3bgcnwnlpwe
-  (✓) Done: Log Analytics workspace: log-nb3bgcnwnlpwe
-  (✓) Done: Container Apps Environment: cae-nb3bgcnwnlpwe
-  (✓) Done: Container App: ca-api-nb3bgcnwnlpwe
-
-  api: Publishing
-  api: Publishing (Tagging container image)
-  api: Publishing (Logging into container registry)
-  api: Publishing (Pushing container image)
-
-  api: Deploying
-  api: Deploying (Updating container app revision)
-  api: Deploying (Waiting for container revision)
-  api: Deploying (Fetching endpoints for service)
-
-  api: Done
-
-SUCCESS: Your application was provisioned and deployed to Azure.
-```
-
----
-
-# Resources Created
-
-| Resource | Name |
-|---|---|
-| Resource Group | `rg-quotesapi-dev` |
-| Container Registry | `acrnb3bgcnwnlpwe` |
-| Log Analytics Workspace | `log-nb3bgcnwnlpwe` |
-| Container Apps Environment | `cae-nb3bgcnwnlpwe` |
-| Container App | `ca-api-nb3bgcnwnlpwe` |
-
----
-
-# Notes
-
-- Region used: `southeastasia`
-- Allowed regions in student subscription:
-  - koreacentral
-  - southeastasia
-  - eastasia
-  - austriaeast
-  - malaysiawest
-
-- Student subscription allows only **1 Container Apps Environment globally**
-- A fresh Container Apps Environment was created after deleting the previous one
-- `Jwt__SigningKey` is stored securely as a Container Apps secret
-- `KeyVault__Uri` is overridden with an empty value to skip Key Vault during startup
-- SQLite database is ephemeral and recreated on each container restart with seed data
-
----
-
-# What I Learned
-
-- How Azure Container Apps works with ASP.NET applications
-- How `azd up` automates provisioning and deployment
-- Basics of Container Apps Environment, revisions, and container deployment
-- How Azure automatically builds and deploys Docker images
-
----
-
-# What Would Break This?
-
-- Using unsupported Azure regions
-- Missing Azure login (`az login`)
-- Container Apps Environment quota limits in student subscription
-- Incorrect environment variables or missing secrets
-- Invalid Docker build or failed container startup
+PS C:\Users\LENOVO\OneDrive\Desktop\Thinkschool> az containerapp env show -n cae-nb3bgcnwnlpwe -g rg-quotesapi-dev -o json
+>> 
+The behavior of this command has been altered by the following extension: containerapp
+{
+  "id": "/subscriptions/f2ab3e93-bb60-46ed-bb28-c8c15a1af0f7/resourceGroups/rg-quotesapi-dev/providers/Microsoft.App/managedEnvironments/cae-nb3bgcnwnlpwe",
+  "location": "Southeast Asia",
+  "name": "cae-nb3bgcnwnlpwe",
+  "properties": {
+    "appInsightsConfiguration": null,
+    "appLogsConfiguration": {
+      "destination": "log-analytics",
+      "logAnalyticsConfiguration": {
+        "customerId": "86389132-40b4-41e7-994f-7832eac4479b",
+        "dynamicJsonColumns": false,
+        "sharedKey": null
+      }
+    },
+    "availabilityZones": null,
+    "customDomainConfiguration": {
+      "certificateKeyVaultProperties": null,
+      "certificatePassword": null,
+      "certificateValue": null,
+      "customDomainVerificationId": "D6690236CDCE4676D905FEB283A69A50641DA7764EB5ABAECB9F39B33CB6923F",
+      "dnsSuffix": null,
+      "expirationDate": null,
+      "subjectName": null,
+      "thumbprint": null
+    },
+    "daprAIConnectionString": null,
+    "daprAIInstrumentationKey": null,
+    "daprConfiguration": {
+      "version": "1.16.4-msft.6"
+    },
+    "defaultDomain": "lemoncliff-d4727121.southeastasia.azurecontainerapps.io",
+    "diskEncryptionConfiguration": null,
+    "environmentMode": "ConsumptionOnly",
+    "eventStreamEndpoint": "https://southeastasia.azurecontainerapps.dev/subscriptions/f2ab3e93-bb60-46ed-bb28-c8c15a1af0f7/resourceGroups/rg-quotesapi-dev/managedEnvironments/cae-nb3bgcnwnlpwe/eventstream",
+    "infrastructureResourceGroup": null,
+    "ingressConfiguration": null,
+    "kedaConfiguration": {
+      "version": "2.18.1"
+    },
+    "openTelemetryConfiguration": null,
+    "peerAuthentication": {
+      "mtls": {
+        "enabled": false
+      }
+    },
+    "peerTrafficConfiguration": {
+      "encryption": {
+        "enabled": false
+      }
+    },
+    "provisioningState": "Succeeded",
+    "publicNetworkAccess": "Enabled",
+    "staticIp": "20.198.185.192",
+    "vnetConfiguration": null,
+    "workloadProfiles": null,
+    "zoneRedundant": false
+  },
+  "resourceGroup": "rg-quotesapi-dev",
+  "systemData": {
+    "createdAt": "2026-05-23T09:55:39.5226734",
+    "createdBy": "202101040075@msteams.mitaoe.ac.in",
+    "createdByType": "User",
+    "lastModifiedAt": "2026-05-23T09:55:39.5226734",
+    "lastModifiedBy": "202101040075@msteams.mitaoe.ac.in",
+    "lastModifiedByType": "User"
+  },
+  "tags": {
+    "azd-env-name": "quotesapi-dev"
+  },
+  "type": "Microsoft.App/managedEnvironments"
+}
