@@ -31,6 +31,8 @@ builder.Host.UseSerilog((context, configuration) =>
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddHealthChecks();
+
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
@@ -68,6 +70,8 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 }
+
+app.MapHealthChecks("/health");
 
 app.MapAuthEndpoints();
 
