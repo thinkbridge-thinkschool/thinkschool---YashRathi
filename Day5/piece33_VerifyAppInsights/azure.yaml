@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: piece33-verifyappinsights
+metadata:
+    template: azd-init@1.25.2
+services:
+    piece33-verifyappinsights:
+        project: ./QuotesApi.csproj
+        host: containerapp
+        language: dotnet
+resources:
+    piece33-verifyappinsights:
+        type: host.containerapp
+        port: 8080

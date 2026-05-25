@@ -7,7 +7,7 @@
     <UserSecretsId>d926f205-8b83-421c-aa41-b6eb435ff135</UserSecretsId>
     <ContainerRepository>quotes-api</ContainerRepository>
     <ContainerImageTag>0.1.0</ContainerImageTag>
-    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0-alpine</ContainerBaseImage>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:10.0</ContainerBaseImage>
   </PropertyGroup>
 
   <ItemGroup>
