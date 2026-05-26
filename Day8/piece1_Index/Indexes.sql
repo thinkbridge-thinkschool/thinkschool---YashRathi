@@ -79,16 +79,16 @@ GO
 SET STATISTICS IO ON;
 SET STATISTICS TIME ON;
 
-PRINT '--- Query A: point lookup by order_id ---';
+PRINT ' Query A: point lookup by order_id ';
 SELECT * FROM dbo.Orders
 WHERE order_id = 49999;
 
-PRINT '--- Query B: lookup by customer_id ---';
+PRINT ' Query B: lookup by customer_id';
 SELECT customer_id, order_date, amount
 FROM dbo.Orders
 WHERE customer_id = 1234;
 
-PRINT '--- Query C: date range ---';
+PRINT ' Query C: date range';
 SELECT order_date, status, amount
 FROM dbo.Orders
 WHERE order_date BETWEEN '2024-01-01' AND '2024-01-31';
@@ -133,16 +133,16 @@ GO
 SET STATISTICS IO  ON;
 SET STATISTICS TIME ON;
 
-PRINT '--- Query A: point lookup by order_id ---';
+PRINT 'Query A: point lookup by order_id';
 SELECT * FROM dbo.Orders
 WHERE order_id = 49999;
 
-PRINT '--- Query B: lookup by customer_id ---';
+PRINT 'Query B: lookup by customer_id ';
 SELECT customer_id, order_date, amount
 FROM dbo.Orders
 WHERE customer_id = 1234;
 
-PRINT '--- Query C: date range ---';
+PRINT 'Query C: date range ';
 SELECT order_date, status, amount
 FROM dbo.Orders
 WHERE order_date BETWEEN '2024-01-01' AND '2024-01-31';
@@ -162,7 +162,6 @@ VALUES (100001, 999, '2025-05-26', 'Pending', 299.99);
 SET STATISTICS IO OFF;
 GO
 
--- Final summary table — this is your exercise answer
 SELECT
     [Query],
     [Logical Reads BEFORE],
