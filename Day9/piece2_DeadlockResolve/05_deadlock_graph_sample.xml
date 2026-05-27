@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sample deadlock graph produced by SQL Server (trace flag 1222 / system_health).
+  This is the structure you will see after running sessions 1 and 2.
+
+  Key sections:
+    <deadlock-list>           – root, one per deadlock event
+      <deadlock victim="..."> – spid of the chosen victim (lower cost txn)
+        <process-list>        – one <process> per participant
+        <resource-list>       – one <keylock> per contested row lock
+
+  Victim (spid shown in victim="") had its transaction rolled back.
+  The surviving session continues normally.
+-->
+<deadlock-list>
+  <deadlock victim="process2">
+
+    <process-list>
+
+      <!-- Session 1: holds lock on AccountA, waits for AccountB -->
+      <process id="process1" taskpriority="0" logused="288"
+               waitresource="KEY: 5:72057594041204736 (8194443284a0)"
+               waittime="3197" ownerId="123456"
+               transactionname="user_transaction"
+               lasttranstarted="2026-05-27T10:00:00.000"
+               XDES="0x123" lockMode="X" schedulerid="1"
+               kpid="1111" status="suspended" spid="51" sbid="0"
+               ecid="0" priority="0" trancount="1"
+               lastbatchstarted="2026-05-27T10:00:00.000"
+               lastbatchcompleted="2026-05-27T09:59:59.000"
+               hostname="MYPC" hostpid="9999"
+               loginname="sa" isolationlevel="read committed (2)"
+               xactid="123456" currentdb="5" lockTimeout="4294967295"
+               clientoption1="673185824" clientoption2="390200">
+        <executionStack>
+          <frame procname="adhoc" line="9"
+                 stmtstart="272" stmtend="436"
+                 sqlhandle="0x020000001234...">
+            UPDATE dbo.AccountB SET Balance = Balance + 100 WHERE Id = 1
+          </frame>
+        </executionStack>
+        <inputbuf>
+          BEGIN TRANSACTION;
+            UPDATE dbo.AccountA SET Balance = Balance - 100 WHERE Id = 1;
+            WAITFOR DELAY '00:00:05';
+            UPDATE dbo.AccountB SET Balance = Balance + 100 WHERE Id = 1;
+          COMMIT;
+        </inputbuf>
+      </process>
+
+      <!-- Session 2: holds lock on AccountB, waits for AccountA (VICTIM) -->
+      <process id="process2" taskpriority="0" logused="288"
+               waitresource="KEY: 5:72057594041139200 (61a06abd401c)"
+               waittime="3098" ownerId="123457"
+               transactionname="user_transaction"
+               lasttranstarted="2026-05-27T10:00:01.000"
+               XDES="0x456" lockMode="X" schedulerid="2"
+               kpid="2222" status="suspended" spid="52" sbid="0"
+               ecid="0" priority="0" trancount="1"
+               lastbatchstarted="2026-05-27T10:00:01.000"
+               lastbatchcompleted="2026-05-27T09:59:59.000"
+               hostname="MYPC" hostpid="9999"
+               loginname="sa" isolationlevel="read committed (2)"
+               xactid="123457" currentdb="5" lockTimeout="4294967295"
+               clientoption1="673185824" clientoption2="390200">
+        <executionStack>
+          <frame procname="adhoc" line="9"
+                 stmtstart="272" stmtend="436"
+                 sqlhandle="0x020000005678...">
+            UPDATE dbo.AccountA SET Balance = Balance + 200 WHERE Id = 1
+          </frame>
+        </executionStack>
+        <inputbuf>
+          BEGIN TRANSACTION;
+            UPDATE dbo.AccountB SET Balance = Balance - 200 WHERE Id = 1;
+            WAITFOR DELAY '00:00:05';
+            UPDATE dbo.AccountA SET Balance = Balance + 200 WHERE Id = 1;
+          COMMIT;
+        </inputbuf>
+      </process>
+
+    </process-list>
+
+    <resource-list>
+
+      <!-- AccountB row – held by process2, wanted by process1 -->
+      <keylock hobtid="72057594041204736" dbid="5" objectname="DeadlockDemo.dbo.AccountB"
+               indexname="PK__AccountB" id="lock1" mode="X" associatedObjectId="72057594041204736">
+        <owner-list>
+          <owner id="process2" mode="X"/>
+        </owner-list>
+        <waiter-list>
+          <waiter id="process1" mode="X" requestType="wait"/>
+        </waiter-list>
+      </keylock>
+
+      <!-- AccountA row – held by process1, wanted by process2 -->
+      <keylock hobtid="72057594041139200" dbid="5" objectname="DeadlockDemo.dbo.AccountA"
+               indexname="PK__AccountA" id="lock2" mode="X" associatedObjectId="72057594041139200">
+        <owner-list>
+          <owner id="process1" mode="X"/>
+        </owner-list>
+        <waiter-list>
+          <waiter id="process2" mode="X" requestType="wait"/>
+        </waiter-list>
+      </keylock>
+
+    </resource-list>
+
+  </deadlock>
+</deadlock-list>
