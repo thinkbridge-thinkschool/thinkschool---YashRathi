@@ -23,13 +23,12 @@ public static class EdgeCasesDemo
         await EdgeCase6_DuplicateKeyThrowsException(contextFactory);
     }
 
-    // ── EC-1: Silent no-op after AsNoTracking modification ──────────────────
+    //EC-1: Silent no-op after AsNoTracking modification
 
     private static async Task EdgeCase1_SilentNoOpAfterAsNoTracking(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-1  AsNoTracking update is a SILENT no-op — no exception     │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+
+        Console.WriteLine("EC-1  AsNoTracking update is a SILENT no-op — no exception");
 
         using var ctx = contextFactory();
 
@@ -52,13 +51,11 @@ public static class EdgeCasesDemo
         Console.WriteLine("  FIX: Never use AsNoTracking() in code paths that modify + save.");
     }
 
-    // ── EC-2: Tracker bloat with a large tracked query ───────────────────────
+    // EC-2: Tracker bloat with a large tracked query 
 
     private static async Task EdgeCase2_TrackerBloatWithLargeQuery(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-2  Tracked read of all 10k rows inflates memory             │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("EC-2  Tracked read of all 10k rows inflates memory");
 
         using var ctx = contextFactory();
 
@@ -73,10 +70,7 @@ public static class EdgeCasesDemo
         Console.WriteLine($"  ChangeTracker.Entries    : {trackerCount:N0}  (one entry per entity)");
         Console.WriteLine($"  GC.GetTotalMemory delta  : ~{(memAfter - memBefore) / 1024:N0} KB");
         Console.WriteLine();
-        Console.WriteLine("  Each tracked entry holds:");
-        Console.WriteLine("    • An EntityEntry wrapper object");
-        Console.WriteLine("    • An InternalEntityEntry with original-value snapshot (object[])");
-        Console.WriteLine("    • Boxed copies of every value-type property (int, decimal, DateTime)");
+        Console.WriteLine("  Each entry holds the entity + a snapshot of all original values.");
         Console.WriteLine();
         Console.WriteLine("  PRODUCTION IMPACT:");
         Console.WriteLine("    A background reporting job that does context.Products.ToList()");
@@ -88,13 +82,11 @@ public static class EdgeCasesDemo
         GC.KeepAlive(products);
     }
 
-    // ── EC-3: Long-lived context accumulates tracked entities ────────────────
+    // EC-3: Long-lived context accumulates tracked entities 
 
     private static async Task EdgeCase3_LongLivedContextAccumulation(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-3  Long-lived DbContext — tracker grows with every query    │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("EC-3  Long-lived DbContext — tracker grows with every query ");
 
         using var ctx = contextFactory();   // simulates a Singleton or reused DbContext
 
@@ -124,21 +116,17 @@ public static class EdgeCasesDemo
         Console.WriteLine("  FIX 3: Use AsNoTracking() so entries never accumulate.");
     }
 
-    // ── EC-4: ATNWIR memory tradeoff (static analysis — no DB needed) ───────
+    //  EC-4: ATNWIR memory tradeoff (static analysis — no DB needed) 
 
     private static void EdgeCase4_IdentityResolutionMemoryTradeoff()
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-4  AsNoTrackingWithIdentityResolution: overhead for flat    │");
-        Console.WriteLine("│        queries vs. benefit for Include(1:N) queries             │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("EC-4  AsNoTrackingWithIdentityResolution: overhead for flat queries vs. benefit for Include(1:N) queries");
         Console.WriteLine();
         Console.WriteLine("  Query scenario A — FLAT (single table, no navigation):");
         Console.WriteLine("    context.Products.AsNoTracking().ToList()      → best choice");
         Console.WriteLine("    context.Products.AsNoTrackingWithIdentityResolution().ToList()");
-        Console.WriteLine("      → same result, but allocates an extra Dictionary<IKey,object>");
-        Console.WriteLine("        that serves no purpose because no entity appears twice.");
-        Console.WriteLine("        PURE OVERHEAD.");
+        Console.WriteLine("      → same result, but extra allocation per query call.");
+        Console.WriteLine("        No entity appears twice in a flat query — pure overhead.");
         Console.WriteLine();
         Console.WriteLine("  Query scenario B — JOIN (Include with 1:N navigation):");
         Console.WriteLine("    context.Orders.AsNoTracking().Include(o => o.Product).ToList()");
@@ -148,17 +136,14 @@ public static class EdgeCasesDemo
         Console.WriteLine("      → Product with Id=5 has 50 orders → 1 Product object in RAM.");
         Console.WriteLine("        Memory saving: 49 × sizeof(Product).");
         Console.WriteLine();
-        Console.WriteLine("  Rule: Only pay the ATNWIR dictionary cost when fan-out is high enough");
-        Console.WriteLine("        to recover it through de-duplication. Measure before committing.");
+        Console.WriteLine("  Rule: Use ATNWIR only when the same parent appears many times in one query.");
     }
 
-    // ── EC-5: Mixing tracked and untracked entities ──────────────────────────
+    // EC-5: Mixing tracked and untracked entities
 
     private static async Task EdgeCase5_MixingTrackedAndUntracked(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-5  Accidentally mixing tracked and untracked entities       │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("EC-5  Accidentally mixing tracked and untracked entities");
 
         using var ctx = contextFactory();
 
@@ -197,16 +182,13 @@ public static class EdgeCasesDemo
 
     private static async Task EdgeCase6_DuplicateKeyThrowsException(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  EC-6  Adding an entity with a key already tracked throws       │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("EC-6  Adding an entity with a key already tracked throws");
 
         using var ctx = contextFactory();
 
         int id = await ctx.Products.Select(p => p.Id).FirstAsync();
         var alreadyTracked = await ctx.Products.FindAsync(id);  // tracked
 
-        // A common mistake in update flows: receive a DTO, map to new entity, call Add()
         var detachedDuplicate = new Product
         {
             Id        = id,
@@ -221,7 +203,7 @@ public static class EdgeCasesDemo
 
         try
         {
-            ctx.Products.Add(detachedDuplicate);   // throws because Id is already tracked
+            ctx.Products.Add(detachedDuplicate);
             Console.WriteLine("  ERROR: Expected exception was NOT thrown.");
         }
         catch (InvalidOperationException ex)

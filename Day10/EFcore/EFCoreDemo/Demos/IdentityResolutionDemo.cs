@@ -20,13 +20,11 @@ public static class IdentityResolutionDemo
         ExplainWhyItExists();
     }
 
-    // ── A: Tracked — same key returns same C# object reference ─────────────
+    //  A: Tracked — same key returns same C# object reference 
 
     private static async Task DemoTracked(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  A: Tracked — same key queried twice                           │");
-        Console.WriteLine("└────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("  A: Tracked — same key queried twice");
 
         using var ctx = contextFactory();
 
@@ -43,20 +41,15 @@ public static class IdentityResolutionDemo
         Console.WriteLine($"  ReferenceEquals(a, b)   : {same}  (expected: True)");
         Console.WriteLine($"  ChangeTracker.Entries   : {ctx.ChangeTracker.Entries<Product>().Count()}  (only 1 — second query was served from identity map, no DB round-trip)");
         Console.WriteLine();
-        Console.WriteLine("  WHY: EF Core's identity map (a Dictionary<IKey,object> inside the");
-        Console.WriteLine("       ChangeTracker) returns the cached instance when the same key");
-        Console.WriteLine("       is seen again. The second SQL query IS still sent to the DB,");
-        Console.WriteLine("       but the materializer looks up the key and returns the existing");
-        Console.WriteLine("       C# object instead of allocating a new one.");
+        Console.WriteLine("  WHY: The identity map returns the same instance for the same key.");
+        Console.WriteLine("       SQL is still sent, but EF hands back the cached object — no new allocation.");
     }
 
-    // ── B: AsNoTracking — new object per query ───────────────────────────────
+    // B: AsNoTracking — new object per query 
 
     private static async Task DemoAsNoTracking(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  B: AsNoTracking — same key queried twice                      │");
-        Console.WriteLine("└────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("B: AsNoTracking — same key queried twice ");
 
         using var ctx = contextFactory();
 
@@ -73,18 +66,15 @@ public static class IdentityResolutionDemo
         Console.WriteLine($"  ReferenceEquals(a, b)   : {same}  (expected: False)");
         Console.WriteLine($"  ChangeTracker.Entries   : {ctx.ChangeTracker.Entries<Product>().Count()}  (always 0 — nothing tracked)");
         Console.WriteLine();
-        Console.WriteLine("  WHY: Without an identity map, EF materializes a fresh heap object");
-        Console.WriteLine("       on every query. Two queries for the same row = two distinct");
-        Console.WriteLine("       C# objects with identical data but different addresses.");
+        Console.WriteLine("  WHY: No identity map = new object every query.");
+        Console.WriteLine("       Same row, same data, but two different C# instances.");
     }
 
-    // ── C: AsNoTrackingWithIdentityResolution ────────────────────────────────
+    //  C: AsNoTrackingWithIdentityResolution
 
     private static async Task DemoAsNoTrackingWithIdentityResolution(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  C: AsNoTrackingWithIdentityResolution                         │");
-        Console.WriteLine("└────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine(" C: AsNoTrackingWithIdentityResolution");
 
         using var ctx = contextFactory();
 
@@ -102,15 +92,7 @@ public static class IdentityResolutionDemo
         Console.WriteLine($"  ReferenceEquals         : {separateSame}  (expected: False — different query scopes)");
         Console.WriteLine();
 
-        // Single bulk query — within ONE ToList() call, the identity map is active
-        // and will de-duplicate parent references when the same entity key appears
-        // multiple times in a JOIN result (e.g. via Include with 1:N navigation).
-        //
-        // Without a navigation property on Product we can demonstrate the memory
-        // allocations differ, but reference equality within a flat ToList is
-        // irrelevant since each row maps to a unique product anyway.
-        //
-        // The meaningful demo is the Include() scenario explained below.
+        // flat query: ATNWIR makes no visible difference — each row is a unique product anyway
 
         var batchAtn   = await ctx.Products.AsNoTracking()
             .OrderBy(p => p.Id).Take(10).ToListAsync();
@@ -132,27 +114,20 @@ public static class IdentityResolutionDemo
 
     private static void ExplainWhyItExists()
     {
-        Console.WriteLine("┌────────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  WHY AsNoTrackingWithIdentityResolution EXISTS                 │");
-        Console.WriteLine("└────────────────────────────────────────────────────────────────┘");
+        Console.WriteLine(" WHY AsNoTrackingWithIdentityResolution EXISTS ");
         Console.WriteLine();
-        Console.WriteLine("  Problem: A 1:N Include() query with AsNoTracking allocates a");
-        Console.WriteLine("           fresh parent entity per child row. If Product 42 has 100");
-        Console.WriteLine("           Reviews, you get 100 duplicate Product instances — all");
-        Console.WriteLine("           identical, all wasting heap space.");
+        Console.WriteLine("  Problem: AsNoTracking with Include() gives you N duplicate parent objects");
+        Console.WriteLine("           for N child rows. Product 42 with 100 Reviews = 100 Product instances.");
         Console.WriteLine();
-        Console.WriteLine("  Solution: ATNWIR builds a temporary identity map that lives for");
-        Console.WriteLine("            the duration of ONE query. It de-duplicates parent refs");
-        Console.WriteLine("            within that result set WITHOUT adding them to the");
-        Console.WriteLine("            ChangeTracker. Objects remain untracked — SaveChanges()");
-        Console.WriteLine("            still ignores them.");
+        Console.WriteLine("  Solution: ATNWIR keeps a temporary identity map for ONE query's lifetime.");
+        Console.WriteLine("            Same parent key seen twice → same instance. Still untracked,");
+        Console.WriteLine("            SaveChanges() still ignores it.");
         Console.WriteLine();
-        Console.WriteLine("  Memory tradeoff:");
-        Console.WriteLine("    + Prevents N duplicate parent objects in a high fan-out JOIN.");
-        Console.WriteLine("    - Allocates a Dictionary<IKey,object> for every query call.");
-        Console.WriteLine("    → Use ATNWIR only with Include() / navigation-heavy queries.");
-        Console.WriteLine("    → Use plain AsNoTracking() for flat single-table reads.");
-        Console.WriteLine("    → Use default tracking whenever you plan to modify + save.");
+        Console.WriteLine("  Tradeoff:");
+        Console.WriteLine("    + Fewer objects in memory for high fan-out joins.");
+        Console.WriteLine("    - Extra allocation per query even when not needed.");
+        Console.WriteLine("    → Use with Include(). Plain AsNoTracking() for flat reads.");
+        Console.WriteLine("    → Never use either when you intend to save changes.");
     }
 
     private static void PrintHeader(string title)

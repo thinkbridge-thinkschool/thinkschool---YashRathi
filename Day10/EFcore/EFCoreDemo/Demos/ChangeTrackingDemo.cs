@@ -15,13 +15,11 @@ public static class ChangeTrackingDemo
         await RunAsNoTrackingNoUpdate(contextFactory);
     }
 
-    // ── Scenario A ──────────────────────────────────────────────────────────
+    // Scenario A
 
     private static async Task RunTrackedUpdate(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  SCENARIO A: Tracked query → modify → SaveChanges           │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────┘");
+        Console.WriteLine("SCENARIO A: Tracked query → modify → SaveChanges");
 
         int    targetId;
         decimal originalPrice;
@@ -41,22 +39,19 @@ public static class ChangeTrackingDemo
 
             product.Price = newPrice;
 
-            Console.WriteLine($"  [Modify] Price changed in-memory         : {originalPrice:F2} → {newPrice:F2}");
-            Console.WriteLine($"  [State]  EntityState (before DetectChanges): {entry.State}  ← still Unchanged! snapshot not yet compared");
+            Console.WriteLine($"  [Modify] Price changed in-memory              : {originalPrice:F2} → {newPrice:F2}");
+            Console.WriteLine($"  [State]  EntityState BEFORE DetectChanges()   : {entry.State}  ← lazy — snapshot not compared yet");
 
-            // EF Core snapshot tracking is LAZY. State does not become Modified until
-            // DetectChanges() is called — which SaveChanges() does automatically.
-            // You can also trigger it manually to inspect state mid-operation.
+            // snapshot tracking is lazy — state doesn't flip until DetectChanges() runs
             ctx.ChangeTracker.DetectChanges();
 
-            Console.WriteLine($"  [State]  EntityState (after  DetectChanges): {entry.State}");
-            Console.WriteLine($"  [Track]  Modified properties tracked     : {string.Join(", ", entry.Properties.Where(p => p.IsModified).Select(p => p.Metadata.Name))}");
+            Console.WriteLine($"  [State]  EntityState AFTER  DetectChanges()   : {entry.State}");
+            Console.WriteLine($"  [Track]  Modified properties                   : {string.Join(", ", entry.Properties.Where(p => p.IsModified).Select(p => p.Metadata.Name))}");
 
             int rows = await ctx.SaveChangesAsync();
             Console.WriteLine($"  [Save]   SaveChanges() rows affected     : {rows}");
         }
 
-        // Verify with a completely fresh context so we're reading from DB, not memory
         using (var freshCtx = contextFactory())
         {
             var verified = await freshCtx.Products.FindAsync(targetId);
@@ -67,13 +62,12 @@ public static class ChangeTrackingDemo
         }
     }
 
-    // ── Scenario B ──────────────────────────────────────────────────────────
+    // Scenario B
 
     private static async Task RunAsNoTrackingNoUpdate(Func<AppDbContext> contextFactory)
     {
-        Console.WriteLine("┌─────────────────────────────────────────────────────────────┐");
-        Console.WriteLine("│  SCENARIO B: AsNoTracking query → modify → SaveChanges      │");
-        Console.WriteLine("└─────────────────────────────────────────────────────────────┘");
+
+        Console.WriteLine("SCENARIO B: AsNoTracking query → modify → SaveChanges");
 
         int     targetId;
         decimal originalPrice;
@@ -96,7 +90,7 @@ public static class ChangeTrackingDemo
 
             int rows = await ctx.SaveChangesAsync();
             Console.WriteLine($"  [Save]   SaveChanges() rows affected     : {rows}  (expected: 0)");
-            Console.WriteLine($"           ^ EF Core has no tracked entity to diff — it generates zero SQL.");
+            Console.WriteLine($"           ^ nothing was tracked — no SQL generated.");
         }
 
         using (var freshCtx = contextFactory())

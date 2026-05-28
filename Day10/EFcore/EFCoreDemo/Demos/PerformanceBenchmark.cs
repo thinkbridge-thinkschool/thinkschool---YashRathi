@@ -48,7 +48,7 @@ public static class PerformanceBenchmark
         return Task.CompletedTask;
     }
 
-    // ── Core measurements ────────────────────────────────────────────────────
+    //Core measurements 
 
     private static (long ms, long bytes) RunTracked(Func<AppDbContext> contextFactory)
     {
@@ -89,7 +89,7 @@ public static class PerformanceBenchmark
         return (sw.ElapsedMilliseconds, allocAfter - allocBefore);
     }
 
-    // ── Result display ───────────────────────────────────────────────────────
+    // Result display 
 
     private static void PrintResults(
         List<(long ms, long bytes)> tracked,
@@ -117,23 +117,17 @@ public static class PerformanceBenchmark
         Console.WriteLine("  Raw runs — AsNoTracking: " + string.Join("  ", noTracking.Select(r => $"{r.ms,4}ms/{r.bytes / 1_048_576.0:F1}MB")));
         Console.WriteLine();
         Console.WriteLine("  WHAT THE NUMBERS MEAN:");
-        Console.WriteLine("    Memory delta  The ChangeTracker stores an original-value snapshot");
-        Console.WriteLine("                  (object[] of boxed primitives) for every tracked entity.");
-        Console.WriteLine("                  For 10k Product rows this adds ~200–400 bytes per entity");
-        Console.WriteLine("                  on top of the entity objects themselves.");
+        Console.WriteLine("    Memory delta  Tracked queries store a value snapshot per entity.");
+        Console.WriteLine("                  For 10k rows this adds ~200–400 bytes per entity");
+        Console.WriteLine("                  on top of the objects themselves.");
         Console.WriteLine();
-        Console.WriteLine("    Time delta    Tracking overhead comes from:");
-        Console.WriteLine("                    1. Dictionary<IKey,object> lookup per materialized row");
-        Console.WriteLine("                    2. Snapshot boxing (Price, CreatedAt → heap-boxed object[])");
-        Console.WriteLine("                    3. EntityEntry wrapper allocation per entity");
-        Console.WriteLine("                    4. DetectChanges() scan on SaveChanges()");
+        Console.WriteLine("    Time delta    Tracking overhead: identity map lookup, snapshot per entity,");
+        Console.WriteLine("                  EntityEntry allocation, DetectChanges() on SaveChanges().");
         Console.WriteLine();
-        Console.WriteLine("    Caveat        I/O cost (SQLite read from OS page cache) is IDENTICAL");
-        Console.WriteLine("                  for both queries. The measured delta is pure EF Core");
-        Console.WriteLine("                  materialization + tracking bookkeeping overhead.");
-        Console.WriteLine("                  On a remote SQL Server the I/O cost would dominate and");
-        Console.WriteLine("                  the relative difference would look smaller — but the");
-        Console.WriteLine("                  absolute memory overhead is the same regardless of server.");
+        Console.WriteLine("    Caveat        SQLite I/O cost is identical for both query types.");
+        Console.WriteLine("                  The delta shown is pure tracking overhead.");
+        Console.WriteLine("                  On SQL Server, network I/O would dominate — relative");
+        Console.WriteLine("                  time difference shrinks, but memory overhead stays the same.");
     }
 
     private static long Median(long[] arr)
