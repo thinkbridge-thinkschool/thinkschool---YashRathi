@@ -53,7 +53,7 @@ dotnet test EFCoreDemo.Tests --filter "AsNoTracking"
 
 ---
 
-## Demo Output
+## Output
 
 ```
 ╔══════════════════════════════════════════════════════════════════╗
@@ -65,14 +65,15 @@ dotnet test EFCoreDemo.Tests --filter "AsNoTracking"
 
 
 ═════════════════════════════════════════════════════════════════
-  PART 2 — Change Tracking Demo
+  PART 1 — Change Tracking 
 ═════════════════════════════════════════════════════════════════
 SCENARIO A: Tracked query → modify → SaveChanges
   [Query]  Id=1, Name='Vintage Widget #00001', Price=1.11
   [State]  EntityState right after query   : Unchanged
-  [Modify] Price changed in-memory         : 1.11 → 101.11
-  [State]  EntityState after modification  : Unchanged
-  [Track]  Modified properties tracked     :
+  [Modify] Price changed in-memory              : 1.11 → 101.11
+  [State]  EntityState BEFORE DetectChanges()   : Unchanged  ← lazy — snapshot not compared yet
+  [State]  EntityState AFTER  DetectChanges()   : Modified
+  [Track]  Modified properties                   : Price
   [Save]   SaveChanges() rows affected     : 1
   [Verify] Price in DB (new context)       : 101.11
   [Result] UPDATE PERSISTED                : YES ✓
@@ -86,21 +87,24 @@ SCENARIO B: AsNoTracking query → modify → SaveChanges
   [Verify] Price in DB (new context)       : 101.11
   [Result] DB UNCHANGED (no stale write)   : YES ✓
 
+
+![Tracked vs AsNoTracking behavior](Tracked_vs_AsNoTrackingBehavior.png)
 ═════════════════════════════════════════════════════════════════
-  PART 3 — Identity Resolution Demo
+  PART 2 — Identity Resolution 
 ═════════════════════════════════════════════════════════════════
   A: Tracked — same key queried twice
   Id targeted             : 4
   first  RuntimeHash      :   10429724
   second RuntimeHash      :   10429724
   ReferenceEquals(a, b)   : True  (expected: True)
-  ChangeTracker.Entries   : 1  (only 1 — second query was served from identity map, no DB round-trip)
+  ChangeTracker.Entries   : 1  (only 1 — both queries hit DB; identity map de-duplicates the C# object, not the SQL)
 
   WHY: EF Core's identity map (a Dictionary<IKey,object> inside the
        ChangeTracker) returns the cached instance when the same key
        is seen again. The second SQL query IS still sent to the DB,
        but the materializer looks up the key and returns the existing
        C# object instead of allocating a new one.
+       (FindAsync skips SQL entirely when tracked; FirstAsync does not.)
 
   B: AsNoTracking — same key queried twice
   Id targeted             : 4
@@ -150,7 +154,7 @@ SCENARIO B: AsNoTracking query → modify → SaveChanges
     → Use default tracking whenever you plan to modify + save.
 
 ═════════════════════════════════════════════════════════════════
-  PART 4 — Performance Benchmark (10,000-row full read)
+  PART 3 — Performance Benchmark (10,000-row full read)
 ═════════════════════════════════════════════════════════════════
   Methodology:
     • 2 warm-up runs discarded (heats JIT + SQLite page cache)
@@ -162,17 +166,21 @@ SCENARIO B: AsNoTracking query → modify → SaveChanges
 
   Warming up .. done.
 
+  Note: Time varies per run (JIT, OS scheduling, SQLite page cache).
+        Memory is deterministic — same value on every run.
+        Screenshot below matches this output exactly.
+
   ┌──────────────────────────────┬──────────────┬──────────────────┐
   │ Query Type                   │  Time (ms)   │  Allocated (MB)  │
   ├──────────────────────────────┼──────────────┼──────────────────┤
-  │ Tracked (default)            │       141 ms │       11.19 MB   │
-  │ AsNoTracking                 │        62 ms │        4.81 MB   │
+  │ Tracked (default)            │       281 ms │       11.19 MB   │
+  │ AsNoTracking                 │        96 ms │        4.81 MB   │
   ├──────────────────────────────┼──────────────┼──────────────────┤
-  │ Ratio (tracked / no-track)   │       2.27x  │          2.32x   │
+  │ Ratio (tracked / no-track)   │       2.93x  │          2.32x   │
   └──────────────────────────────┴──────────────┴──────────────────┘
 
-  Raw runs — Tracked    :  533ms/11.2MB   249ms/11.2MB   126ms/11.2MB   141ms/11.2MB    81ms/11.2MB
-  Raw runs — AsNoTracking:  198ms/4.8MB    59ms/4.8MB    72ms/4.8MB    62ms/4.8MB    44ms/4.8MB
+  Raw runs — Tracked    :  239ms/11.2MB   328ms/11.2MB   293ms/11.2MB   281ms/11.2MB    75ms/11.2MB
+  Raw runs — AsNoTracking:  141ms/4.8MB    96ms/4.8MB   129ms/4.8MB    63ms/4.8MB    76ms/4.8MB
 
   WHAT THE NUMBERS MEAN:
     Memory delta  The ChangeTracker stores an original-value snapshot
@@ -193,8 +201,10 @@ SCENARIO B: AsNoTracking query → modify → SaveChanges
                   the relative difference would look smaller — but the
                   absolute memory overhead is the same regardless of server.
 
+![Benchmark Table](Benchmark_Table.png)
+
 ═════════════════════════════════════════════════════════════════
-  PART 5 — Edge Cases & Production Failure Modes
+  PART 4 — Edge Cases & Production Failure Modes
 ═════════════════════════════════════════════════════════════════
 EC-1  AsNoTracking update is a SILENT no-op — no exception
   product.Price in memory : 10100.11  (object was mutated)

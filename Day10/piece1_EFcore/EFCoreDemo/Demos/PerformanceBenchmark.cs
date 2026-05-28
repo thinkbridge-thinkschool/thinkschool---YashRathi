@@ -12,7 +12,7 @@ public static class PerformanceBenchmark
 
     public static Task RunAsync(Func<AppDbContext> contextFactory)
     {
-        PrintHeader("PART 4 — Performance Benchmark (10,000-row full read)");
+        PrintHeader("PART 3 — Performance Benchmark (10,000-row full read)");
 
         Console.WriteLine($"  Methodology:");
         Console.WriteLine($"    • {WarmupRuns} warm-up runs discarded (heats JIT + SQLite page cache)");

@@ -6,9 +6,6 @@ using Xunit;
 
 namespace EFCoreDemo.Tests;
 
-// Each test class gets its own in-memory SQLite database via a dedicated connection.
-// The connection is kept open for the lifetime of the class so the :memory: DB survives
-// between test methods.  xUnit runs tests within a class sequentially by default.
 
 public sealed class ChangeTrackingTests : IDisposable
 {
@@ -42,10 +39,7 @@ public sealed class ChangeTrackingTests : IDisposable
         );
         ctx.SaveChanges();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 1 — Tracked entity state transitions
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task Tracked_EntityState_IsUnchanged_RightAfterQuery()
@@ -67,6 +61,28 @@ public sealed class ChangeTrackingTests : IDisposable
     }
 
     [Fact]
+    public async Task Tracked_EntityState_IsStillUnchanged_BeforeDetectChanges_ThenModifiedAfter()
+    {
+        // Proves change detection is LAZY: EF does not flip state on mutation.
+        // State stays Unchanged until DetectChanges() (or SaveChanges()) compares snapshots.
+        using var ctx = NewContext();
+        ctx.ChangeTracker.AutoDetectChangesEnabled = false;
+
+        var product = await ctx.Products.FirstAsync();
+        product.Price += 1m;
+
+        // Before explicit DetectChanges — still Unchanged
+        var entryBeforeDetect = ctx.ChangeTracker.Entries<Product>()
+            .First(e => e.Entity.Id == product.Id);
+        Assert.Equal(EntityState.Unchanged, entryBeforeDetect.State);
+
+        ctx.ChangeTracker.DetectChanges();
+
+        // After DetectChanges — now Modified
+        Assert.Equal(EntityState.Modified, entryBeforeDetect.State);
+    }
+
+    [Fact]
     public async Task Tracked_SaveChanges_ReturnsOneRowAffected_OnSingleModification()
     {
         using var ctx = NewContext();
@@ -78,12 +94,9 @@ public sealed class ChangeTrackingTests : IDisposable
         Assert.Equal(1, rows);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 2 — Tracked update persists to the actual database
     //           Verified by reading back in a SECOND context so we prove
     //           the change is on disk, not just in the first context's cache.
-    // ═══════════════════════════════════════════════════════════════════════
-
     [Fact]
     public async Task Tracked_PriceChange_PersistedToDB_ConfirmedBySecondContext()
     {
@@ -128,9 +141,8 @@ public sealed class ChangeTrackingTests : IDisposable
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 3 — AsNoTracking: modifications do NOT reach the database
-    // ═══════════════════════════════════════════════════════════════════════
+
 
     [Fact]
     public async Task AsNoTracking_EntityIsNotInChangeTracker()
@@ -211,9 +223,7 @@ public sealed class ChangeTrackingTests : IDisposable
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 4 — Identity resolution
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task Tracked_SameId_QueriedTwice_ReturnsSameReference()
@@ -256,9 +266,7 @@ public sealed class ChangeTrackingTests : IDisposable
             "ATNWIR identity map is per-query-scope, not per-context. Separate queries → separate instances.");
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 5 — ChangeTracker utility operations
-    // ═══════════════════════════════════════════════════════════════════════
 
     [Fact]
     public async Task ChangeTracker_Clear_DetachesAllTrackedEntities()
@@ -289,9 +297,8 @@ public sealed class ChangeTrackingTests : IDisposable
         Assert.Equal(0, rows);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
     // GROUP 6 — Edge case: duplicate key throws when already tracked
-    // ═══════════════════════════════════════════════════════════════════════
+
 
     [Fact]
     public async Task AddingDuplicateKey_WhenAlreadyTracked_ThrowsInvalidOperationException()

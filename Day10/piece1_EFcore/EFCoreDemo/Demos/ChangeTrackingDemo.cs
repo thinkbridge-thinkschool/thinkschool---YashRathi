@@ -8,7 +8,7 @@ public static class ChangeTrackingDemo
 {
     public static async Task RunAsync(Func<AppDbContext> contextFactory)
     {
-        PrintHeader("PART 2 — Change Tracking Demo");
+        PrintHeader("PART 1 — Change Tracking Demo");
 
         await RunTrackedUpdate(contextFactory);
         Console.WriteLine();

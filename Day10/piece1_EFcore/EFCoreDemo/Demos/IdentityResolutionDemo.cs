@@ -9,7 +9,7 @@ public static class IdentityResolutionDemo
 {
     public static async Task RunAsync(Func<AppDbContext> contextFactory)
     {
-        PrintHeader("PART 3 — Identity Resolution Demo");
+        PrintHeader("PART 2 — Identity Resolution Demo");
 
         await DemoTracked(contextFactory);
         Console.WriteLine();
@@ -39,7 +39,7 @@ public static class IdentityResolutionDemo
         Console.WriteLine($"  first  RuntimeHash      : {RuntimeHelpers.GetHashCode(first),10}");
         Console.WriteLine($"  second RuntimeHash      : {RuntimeHelpers.GetHashCode(second),10}");
         Console.WriteLine($"  ReferenceEquals(a, b)   : {same}  (expected: True)");
-        Console.WriteLine($"  ChangeTracker.Entries   : {ctx.ChangeTracker.Entries<Product>().Count()}  (only 1 — second query was served from identity map, no DB round-trip)");
+        Console.WriteLine($"  ChangeTracker.Entries   : {ctx.ChangeTracker.Entries<Product>().Count()}  (only 1 — both queries hit DB; identity map de-duplicates the C# object, not the SQL)");
         Console.WriteLine();
         Console.WriteLine("  WHY: The identity map returns the same instance for the same key.");
         Console.WriteLine("       SQL is still sent, but EF hands back the cached object — no new allocation.");

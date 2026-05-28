@@ -1,5 +1,33 @@
 # Day 10 — EF Core Change Tracker + AsNoTracking  
-## Mentor Reflection
+
+---
+
+### Exercise
+
+**Two query variants (10,000-row full read, SQLite):**
+
+```csharp
+// Variant A — Tracked (default)
+List<Product> products = ctx.Products.ToList();
+
+// Variant B — AsNoTracking
+List<Product> products = ctx.Products.AsNoTracking().ToList();
+```
+
+**Benchmark result (median of 5 runs, SQLite on local machine):**
+
+| Query Type          | Time*      | Allocated  |
+|---------------------|------------|------------|
+| Tracked (default)   | ~141–313 ms | 11.19 MB  |
+| AsNoTracking        |  ~62–134 ms |  4.81 MB  |
+| Ratio               |   ~2.3×    |   2.32×   |
+
+*Time varies per run (JIT, OS scheduling, SQLite page cache warmth). **Memory allocation is deterministic — always 11.19 MB vs 4.81 MB regardless of run.** The ~2.3× memory ratio is the reliable signal; the time ratio confirms the same direction.
+
+The extra memory comes from EF Core boxing every value-type property (`Price`, `CreatedAt`) into an `object[]` snapshot per entity — one `EntityEntry` + original-value array per row, ~200–400 bytes overhead per entity × 10,000 rows.
+
+**When NOT to use `AsNoTracking`:**  
+Never use it when you plan to modify and save the entity — `SaveChanges()` silently generates zero SQL.
 
 ---
 
@@ -38,12 +66,16 @@ The only safety net is an integration test that verifies the DB state in a fresh
 
 ### What Surprised Me
 
-**1. The second tracked query is still sent to the database.**  
-I assumed that once an entity is tracked, a second `FindAsync(id)` would be fully served from cache.
-It is not — EF Core sends the SQL again. The identity map only affects object materialisation:
-the row is read from the DB, but instead of allocating a new object, EF hands back the existing reference.
-This means stale data from the DB is *ignored* while the entity is tracked — which can be a gotcha
-if another process updates the row between your two queries.
+**1. The second tracked LINQ query is still sent to the database.**  
+I assumed that once an entity is tracked, a second `FirstAsync(p => p.Id == id)` would be fully served
+from the identity map cache. It is not — EF Core sends the SQL again. The identity map only affects
+object *materialisation*: the row is read from the DB, but instead of allocating a new C# object,
+EF hands back the existing reference. Stale DB data is silently ignored — a gotcha if another
+process updates the row between your two queries.
+
+Note: `FindAsync(id)` behaves differently — it **does** skip the SQL when the entity is already
+tracked. The demo uses `FirstAsync` (a LINQ query), which always translates to SQL regardless of
+tracker state. Only `Find`/`FindAsync` have first-class identity-map short-circuit logic.
 
 **2. `AsNoTrackingWithIdentityResolution` is scoped to a single query, not to the context lifetime.**  
 I thought it was a middle-ground mode: untracked but sharing references across the context session.

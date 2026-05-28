@@ -8,7 +8,7 @@ public static class EdgeCasesDemo
 {
     public static async Task RunAsync(Func<AppDbContext> contextFactory)
     {
-        PrintHeader("PART 5 — Edge Cases & Production Failure Modes");
+        PrintHeader("PART 4 — Edge Cases & Production Failure Modes");
 
         await EdgeCase1_SilentNoOpAfterAsNoTracking(contextFactory);
         Console.WriteLine();
