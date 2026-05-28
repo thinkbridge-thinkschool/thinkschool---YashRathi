@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="EFCoreDemo.Tests/EFCoreDemo.Tests.csproj" />
+  <Project Path="EFCoreDemo/EFCoreDemo.csproj" />
+</Solution>
