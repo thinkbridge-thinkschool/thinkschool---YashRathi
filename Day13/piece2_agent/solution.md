@@ -267,39 +267,65 @@ Quote A's response was cancelled by `switchMap` — the highlighted button staye
 
 ## 4. One Concrete Bug Caught and Fixed
 
-**Bug: unused `delay` import shipped in the agent's service**
+**Bug: error handler placed at wrong level — kills the switchMap subscription permanently**
 
-The agent's first draft of `quotes-feature.service.ts` included:
+The agent's original code caught detail errors on the outer `.subscribe()`:
 
 ```ts
-// WRONG — delay imported but never used in production code
-import { catchError, delay } from 'rxjs/operators';
+// WRONG — error on outer subscribe terminates the whole subscription
+this.select$
+  .pipe(
+    switchMap((id) => {
+      this.loadingDetail.set(true);
+      return this.svc.getQuote(id);   // if this errors...
+    }),
+    takeUntilDestroyed(this.destroyRef)
+  )
+  .subscribe({
+    next: (q) => { ... },
+    error: (e: Error) => {             // ...this fires and kills the Observable permanently
+      this.detailError.set(e.message);
+      this.loadingDetail.set(false);
+    },
+  });
 ```
 
-`delay` is only needed during temporary testing. Shipping it as a permanent import means
-the agent copy-pasted the spec template without thinking about what belongs in production code.
+When `GET /api/quotes/:id` returns a 404 or 500, the error propagates through `switchMap`
+to the outer Observable and terminates it permanently. The error message shows once — but
+after that, every click calls `select$.next(id)` with no subscriber. All subsequent quote
+clicks silently do nothing. The subscription is dead.
 
-**Fix applied:**
+**Fix — catch the error inside `switchMap` so the outer Observable never errors:**
 
 ```ts
-// CORRECT — only catchError is used
+// CORRECT — error caught per-request inside switchMap, outer Observable stays alive
+import { EMPTY } from 'rxjs';
 import { catchError } from 'rxjs/operators';
+
+this.select$
+  .pipe(
+    switchMap((id) => {
+      this.loadingDetail.set(true);
+      this.detailError.set(null);
+      this.detail.set(null);
+      return this.svc.getQuote(id).pipe(
+        catchError((e: Error) => {
+          this.detailError.set(e.message);
+          this.loadingDetail.set(false);
+          return EMPTY;   // complete this inner observable cleanly, no error propagated
+        })
+      );
+    }),
+    takeUntilDestroyed(this.destroyRef)
+  )
+  .subscribe({
+    next: (q) => { this.detail.set(q); this.loadingDetail.set(false); },
+    // no error: handler needed — errors are caught inside switchMap
+  });
 ```
 
-**Second issue verified — swallowed error in switchMap**
-
-If the `error:` handler were missing from the `select$` subscribe block, any HTTP error
-on a detail fetch would permanently kill the Observable. All subsequent clicks would silently
-do nothing — no error shown, no loading state, just a frozen panel.
-
-Verified the handler is present before shipping:
-
-```ts
-.subscribe({
-  next: (q) => { this.detail.set(q); this.loadingDetail.set(false); },
-  error: (e: Error) => { this.detailError.set(e.message); this.loadingDetail.set(false); },
-});
-```
+`EMPTY` completes the inner Observable without emitting a value and without error,
+so `switchMap` moves on cleanly. The subscription stays alive for all future clicks.
 
 ---
 

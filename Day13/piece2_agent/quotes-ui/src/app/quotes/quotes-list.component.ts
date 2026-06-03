@@ -8,7 +8,8 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Subject, switchMap } from 'rxjs';
+import { EMPTY, Subject, switchMap } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { QuotesFeatureService } from './quotes-feature.service';
 import { QuoteListItem, QuoteDetail } from './quotes.types';
 
@@ -43,17 +44,19 @@ export class QuotesListComponent implements OnInit {
           this.loadingDetail.set(true);
           this.detailError.set(null);
           this.detail.set(null);
-          return this.svc.getQuote(id);
+          return this.svc.getQuote(id).pipe(
+            catchError((e: Error) => {
+              this.detailError.set(e.message);
+              this.loadingDetail.set(false);
+              return EMPTY;
+            })
+          );
         }),
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe({
         next: (q) => {
           this.detail.set(q);
-          this.loadingDetail.set(false);
-        },
-        error: (e: Error) => {
-          this.detailError.set(e.message);
           this.loadingDetail.set(false);
         },
       });
