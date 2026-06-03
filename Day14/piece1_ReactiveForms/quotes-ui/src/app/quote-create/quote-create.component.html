@@ -1,0 +1,95 @@
+<section aria-labelledby="form-heading" style="max-width:520px;padding:1.5rem">
+
+  <h2 id="form-heading" style="font-size:1.1rem;font-weight:600;margin-bottom:1.25rem">
+    Add a Quote
+  </h2>
+
+  @if (submitSuccess()) {
+    <div role="alert" style="color:#16a34a;margin-bottom:1rem">
+      Quote added successfully.
+    </div>
+  }
+
+  @if (submitError()) {
+    <div role="alert" style="color:#dc2626;margin-bottom:1rem">
+      Error: {{ submitError() }}
+    </div>
+  }
+
+  <form [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+
+    <!-- AUTHOR FIELD -->
+    <div style="margin-bottom:1.25rem">
+      <label for="author" style="display:block;font-size:0.875rem;
+             font-weight:500;margin-bottom:4px">
+        Author <span aria-hidden="true" style="color:#dc2626">*</span>
+      </label>
+      <input
+        #authorInput
+        id="author"
+        type="text"
+        formControlName="author"
+        autocomplete="off"
+        [attr.aria-invalid]="isInvalid(author) ? 'true' : null"
+        [attr.aria-describedby]="isInvalid(author) ? 'author-error' : null"
+        aria-required="true"
+        style="width:100%;padding:8px 10px;border:1px solid;border-radius:6px;
+               font-size:0.9rem;box-sizing:border-box"
+        [style.border-color]="isInvalid(author) ? '#dc2626' : '#d1d5db'"
+      />
+      @if (isInvalid(author)) {
+        <span
+          id="author-error"
+          role="alert"
+          style="display:block;font-size:0.78rem;color:#dc2626;margin-top:4px">
+          @if (author.errors?.['required']) { Author is required. }
+          @else if (author.errors?.['whitespaceOnly']) { Author cannot be only spaces. }
+          @else if (author.errors?.['maxlength']) { Author must be 200 characters or fewer. }
+        </span>
+      }
+    </div>
+
+    <!-- TEXT FIELD -->
+    <div style="margin-bottom:1.25rem">
+      <label for="text" style="display:block;font-size:0.875rem;
+             font-weight:500;margin-bottom:4px">
+        Quote text <span aria-hidden="true" style="color:#dc2626">*</span>
+      </label>
+      <textarea
+        #textInput
+        id="text"
+        formControlName="text"
+        rows="4"
+        [attr.aria-invalid]="isInvalid(text) ? 'true' : null"
+        [attr.aria-describedby]="isInvalid(text) ? 'text-error' : null"
+        aria-required="true"
+        style="width:100%;padding:8px 10px;border:1px solid;border-radius:6px;
+               font-size:0.9rem;box-sizing:border-box;resize:vertical"
+        [style.border-color]="isInvalid(text) ? '#dc2626' : '#d1d5db'"
+      ></textarea>
+      @if (isInvalid(text)) {
+        <span
+          id="text-error"
+          role="alert"
+          style="display:block;font-size:0.78rem;color:#dc2626;margin-top:4px">
+          @if (text.errors?.['required']) { Quote text is required. }
+          @else if (text.errors?.['whitespaceOnly']) { Quote cannot be only spaces. }
+          @else if (text.errors?.['maxlength']) { Quote must be 1000 characters or fewer. }
+        </span>
+      }
+    </div>
+
+    <!-- SUBMIT BUTTON -->
+    <button
+      type="submit"
+      [disabled]="submitting()"
+      [attr.aria-busy]="submitting() ? 'true' : null"
+      style="padding:10px 24px;background:#4338ca;color:white;border:none;
+             border-radius:6px;font-size:0.9rem;cursor:pointer;font-weight:500"
+      [style.opacity]="submitting() ? '0.6' : '1'">
+      {{ submitting() ? 'Saving…' : 'Add Quote' }}
+    </button>
+
+  </form>
+
+</section>
