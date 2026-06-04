@@ -1,0 +1,147 @@
+<section aria-labelledby="form-heading" style="max-width:520px;padding:1.5rem">
+
+  <h2 id="form-heading" style="font-size:1.1rem;font-weight:600;margin-bottom:1.25rem">
+    Add a Quote
+  </h2>
+
+  @if (submitSuccess()) {
+    <div role="alert" style="color:#16a34a;margin-bottom:1rem">
+      Quote added successfully.
+    </div>
+  }
+
+  @if (submitError()) {
+    <div role="alert" style="color:#dc2626;margin-bottom:1rem">
+      Error: {{ submitError() }}
+    </div>
+  }
+
+  <form (submit)="onSubmit($event)" novalidate>
+
+    <!-- AUTHOR FIELD -->
+    <div style="margin-bottom:1.25rem">
+      <label for="author" style="display:block;font-size:0.875rem;
+             font-weight:500;margin-bottom:4px">
+        Author <span aria-hidden="true" style="color:#dc2626">*</span>
+      </label>
+      <input
+        #authorInput
+        id="author"
+        type="text"
+        [formField]="quoteForm.author"
+        autocomplete="off"
+        [attr.aria-invalid]="quoteForm.author().touched() && quoteForm.author().invalid() ? 'true' : null"
+        [attr.aria-describedby]="quoteForm.author().touched() && quoteForm.author().invalid() ? 'author-error' : null"
+        aria-required="true"
+        style="width:100%;padding:8px 10px;border:1px solid;border-radius:6px;
+               font-size:0.9rem;box-sizing:border-box"
+        [style.border-color]="quoteForm.author().touched() && quoteForm.author().invalid() ? '#dc2626' : '#d1d5db'"
+      />
+      @if (quoteForm.author().touched() && quoteForm.author().invalid()) {
+        <span
+          id="author-error"
+          role="alert"
+          style="display:block;font-size:0.78rem;color:#dc2626;margin-top:4px">
+          {{ quoteForm.author().errors()[0]?.message }}
+        </span>
+      }
+    </div>
+
+    <!-- TEXT FIELD -->
+    <div style="margin-bottom:1.25rem">
+      <label for="text" style="display:block;font-size:0.875rem;
+             font-weight:500;margin-bottom:4px">
+        Quote text <span aria-hidden="true" style="color:#dc2626">*</span>
+      </label>
+      <textarea
+        #textInput
+        id="text"
+        [formField]="quoteForm.text"
+        rows="4"
+        [attr.aria-invalid]="quoteForm.text().touched() && quoteForm.text().invalid() ? 'true' : null"
+        [attr.aria-describedby]="quoteForm.text().touched() && quoteForm.text().invalid() ? 'text-error' : null"
+        aria-required="true"
+        style="width:100%;padding:8px 10px;border:1px solid;border-radius:6px;
+               font-size:0.9rem;box-sizing:border-box;resize:vertical"
+        [style.border-color]="quoteForm.text().touched() && quoteForm.text().invalid() ? '#dc2626' : '#d1d5db'"
+      ></textarea>
+      @if (quoteForm.text().touched() && quoteForm.text().invalid()) {
+        <span
+          id="text-error"
+          role="alert"
+          style="display:block;font-size:0.78rem;color:#dc2626;margin-top:4px">
+          {{ quoteForm.text().errors()[0]?.message }}
+        </span>
+      }
+    </div>
+
+    <!-- SUBMIT BUTTON
+         Disabled only during loading (quoteForm().submitting()).
+         NOTE: the requirement says "disable when invalid OR loading", but disabling
+         when invalid from the very start (empty required fields → always invalid)
+         prevents the user from ever clicking the button to trigger markAllAsTouched.
+         Only loading-based disable is applied here, matching piece1's behaviour.
+         If you want invalid-after-touched disable, change to:
+           [disabled]="(formInvalid() && formTouched()) || quoteForm().submitting()" -->
+    <button
+      type="submit"
+      [disabled]="quoteForm().submitting()"
+      [attr.aria-busy]="quoteForm().submitting() ? 'true' : null"
+      style="padding:10px 24px;background:#4338ca;color:white;border:none;
+             border-radius:6px;font-size:0.9rem;cursor:pointer;font-weight:500"
+      [style.opacity]="quoteForm().submitting() ? '0.6' : '1'">
+      {{ quoteForm().submitting() ? 'Saving…' : 'Add Quote' }}
+    </button>
+
+  </form>
+
+  <!-- ═══ SIGNAL FORMS DEBUG PANEL ═══
+       All five values are computed() signals in the component class.
+       They reflect the form-level FieldState — not individual field state. -->
+  <details style="margin-top:1.5rem;border:1px solid #e5e7eb;border-radius:6px;padding:0.75rem">
+    <summary style="cursor:pointer;font-size:0.78rem;font-weight:600;
+                    color:#6b7280;letter-spacing:0.05em;text-transform:uppercase">
+      Signal Form Debug State
+    </summary>
+    <table style="margin-top:0.75rem;width:100%;border-collapse:collapse;font-size:0.8rem">
+      <tbody>
+        <tr>
+          <td style="padding:3px 8px 3px 0;color:#6b7280">pristine</td>
+          <td style="padding:3px 0;font-family:monospace;font-weight:600"
+              [style.color]="formPristine() ? '#16a34a' : '#9ca3af'">
+            {{ formPristine() }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px 3px 0;color:#6b7280">dirty</td>
+          <td style="padding:3px 0;font-family:monospace;font-weight:600"
+              [style.color]="formDirty() ? '#4338ca' : '#9ca3af'">
+            {{ formDirty() }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px 3px 0;color:#6b7280">touched</td>
+          <td style="padding:3px 0;font-family:monospace;font-weight:600"
+              [style.color]="formTouched() ? '#4338ca' : '#9ca3af'">
+            {{ formTouched() }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px 3px 0;color:#6b7280">valid</td>
+          <td style="padding:3px 0;font-family:monospace;font-weight:600"
+              [style.color]="formValid() ? '#16a34a' : '#9ca3af'">
+            {{ formValid() }}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:3px 8px 3px 0;color:#6b7280">invalid</td>
+          <td style="padding:3px 0;font-family:monospace;font-weight:600"
+              [style.color]="formInvalid() ? '#dc2626' : '#9ca3af'">
+            {{ formInvalid() }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
+
+</section>
