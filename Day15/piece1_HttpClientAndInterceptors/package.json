@@ -1,0 +1,19 @@
+{
+  "name": "piece2_agent",
+  "version": "1.0.0",
+  "description": "> Angular 21 is signals-first and zoneless. Today you direct the agent (Claude Code) to build it — > the company's work is directing and verifying AI, not hand-typing components. Brief the agent to > scaffold a standalone app (no NgModules) against your real Week-1 API: `signal()`/`computed()`/`effect()` > for state, the new control flow (`@if`/`@for`/`@switch`), and `inject()` over constructor injection. > Then verify and defend it.",
+  "main": "k6-fast.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}
