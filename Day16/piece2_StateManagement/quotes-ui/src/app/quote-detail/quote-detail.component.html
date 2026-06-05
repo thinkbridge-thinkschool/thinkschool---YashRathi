@@ -1,0 +1,38 @@
+<div class="detail-page">
+
+  <div class="detail-nav">
+    <a routerLink="/quotes" class="back-btn">← Back to Quotes</a>
+  </div>
+
+  @if (isLoading()) {
+    <div class="detail-loading">
+      <div class="spinner"></div>
+      <span>Loading quote...</span>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="detail-error">
+      <div class="error-icon">⚠</div>
+      <p>{{ errorMessage() }}</p>
+      <a routerLink="/quotes" class="btn-back-link">← Back to Quotes</a>
+    </div>
+  } @else if (quote(); as q) {
+    <div class="detail-card">
+      <div class="detail-header">
+        <h1 class="detail-title">Quote Detail</h1>
+        <span class="detail-id">#{{ q.id }}</span>
+      </div>
+      <div class="detail-body">
+        <div class="detail-quote-mark">"</div>
+        <blockquote class="detail-quote-text">"{{ q.text }}"</blockquote>
+        <div class="detail-author-row">
+          <div class="detail-avatar">{{ q.author[0] }}</div>
+          <div class="detail-author-info">
+            <strong class="detail-author-name">{{ q.author }}</strong>
+            <span class="detail-date">{{ q.createdAt.slice(0, 10) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
