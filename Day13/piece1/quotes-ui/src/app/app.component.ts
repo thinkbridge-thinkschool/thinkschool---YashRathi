@@ -2,11 +2,12 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { QuotesService } from './quotes.service';
 import { Quote } from './quote.model';
+import { QuotesListComponent } from './quotes/quotes-list.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, QuotesListComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -16,17 +17,16 @@ export class AppComponent {
   // --- Signals ---
   currentPage  = signal(1);
   pageSize     = signal(10);
-  searchTerm   = signal('');   // kept for spec; mirrors authorSearch
   authorSearch = signal('');
   quoteSearch  = signal('');
   quotes       = signal<Quote[]>([]);
   isLoading    = signal(false);
   errorMessage = signal<string | null>(null);
+  // False when the last fetch returned fewer items than pageSize (end of data).
+  hasMore      = signal(true);
 
   // --- Computed ---
-  filteredQuotes = computed(() => this.quotes());
-  totalCount     = computed(() => this.filteredQuotes().length);
-  pageStart      = computed(() => (this.currentPage() - 1) * this.pageSize() + 1);
+  totalCount = computed(() => this.quotes().length);
 
   summary = computed(() => {
     const author = this.authorSearch().trim();
@@ -38,6 +38,10 @@ export class AppComponent {
     if (text)            return `Found ${count} quotes containing "${text}" — Page ${page}`;
     return `Showing ${count} quotes — Page ${page}`;
   });
+
+  hasActiveFilter = computed(() =>
+    this.authorSearch().trim().length > 0 || this.quoteSearch().trim().length > 0
+  );
 
   viewState = computed<'loading' | 'error' | 'success'>(() => {
     if (this.isLoading()) return 'loading';
@@ -63,6 +67,7 @@ export class AppComponent {
     this.quotesService.getQuotes(page, size, author, text).subscribe({
       next: (data) => {
         this.quotes.set(data);
+        this.hasMore.set(data.length >= size);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -74,7 +79,6 @@ export class AppComponent {
 
   onAuthorChange(value: string): void {
     this.authorSearch.set(value);
-    this.searchTerm.set(value);
     this.currentPage.set(1);
   }
 
@@ -86,7 +90,6 @@ export class AppComponent {
   clearAll(): void {
     this.authorSearch.set('');
     this.quoteSearch.set('');
-    this.searchTerm.set('');
     this.currentPage.set(1);
   }
 

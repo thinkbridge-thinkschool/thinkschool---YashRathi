@@ -1,3 +1,5 @@
+<app-quotes-list />
+
 <!-- ═══ HERO HEADER ═══ -->
 <header class="hero">
   <div class="hero-inner">
@@ -117,7 +119,7 @@
     @default {
       <!-- Quote grid — @for with track required by spec -->
       <div class="quotes-grid">
-        @for (quote of filteredQuotes(); track quote.id) {
+        @for (quote of quotes(); track quote.id) {
           <article class="quote-card">
             <span class="quote-mark">"</span>
             <p class="quote-text">{{ quote.text }}</p>
@@ -132,8 +134,13 @@
         } @empty {
           <div class="empty-state">
             <div class="empty-icon">🔍</div>
-            <p>No quotes found for your search.</p>
-            <button class="btn btn-outline" (click)="clearAll()">Clear all filters</button>
+            @if (hasActiveFilter()) {
+              <p>No quotes found for your search.</p>
+              <button class="btn btn-outline" (click)="clearAll()">Clear all filters</button>
+            } @else {
+              <p>You've reached the last page.</p>
+              <button class="btn btn-outline" (click)="previousPage()">← Go back</button>
+            }
           </div>
         }
       </div>
@@ -146,7 +153,7 @@
       ← Previous
     </button>
     <span class="page-pill">{{ currentPage() }}</span>
-    <button class="btn btn-page" (click)="nextPage()">
+    <button class="btn btn-page" (click)="nextPage()" [disabled]="!hasMore()">
       Next →
     </button>
   </nav>
