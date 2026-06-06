@@ -1,0 +1,51 @@
+<div style="display:flex;gap:1.5rem;padding:1rem;font-family:sans-serif">
+
+  <aside style="width:300px;flex-shrink:0;border-right:1px solid #e5e7eb;padding-right:1rem">
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem">Quotes</h2>
+
+    @if (store.isLoading()) {
+      <p style="color:#6b7280">Loading quotes…</p>
+    } @else if (store.error()) {
+      <p style="color:#dc2626">Error: {{ store.error() }}</p>
+    } @else if (store.isEmpty()) {
+      <p style="color:#6b7280">No quotes found.</p>
+    } @else {
+      @for (q of store.quotes(); track q.id) {
+        <button
+          (click)="select(q.id)"
+          [style.background]="selectedId() === q.id ? '#eef2ff' : '#fff'"
+          [style.border-color]="selectedId() === q.id ? '#6366f1' : '#e5e7eb'"
+          style="display:block;width:100%;text-align:left;padding:10px 12px;
+                 margin-bottom:6px;border:1px solid;border-radius:8px;cursor:pointer">
+          <span style="display:block;font-size:0.85rem;font-weight:600;color:#111827">
+            {{ q.author }}
+          </span>
+          <span style="display:block;font-size:0.78rem;color:#6b7280;margin-top:2px">
+            {{ q.text.slice(0, 60) }}…
+          </span>
+        </button>
+      }
+    }
+  </aside>
+
+  <main style="flex:1;padding-left:0.5rem">
+    @if (loadingDetail()) {
+      <p style="color:#6b7280">Loading…</p>
+    } @else if (detailError()) {
+      <p style="color:#dc2626">Error: {{ detailError() }}</p>
+    } @else if (detail(); as q) {
+      <blockquote style="border-left:4px solid #6366f1;padding-left:1rem;
+                         font-size:1.15rem;line-height:1.7;margin:0 0 1rem 0;
+                         color:#111827">
+        "{{ q.text }}"
+      </blockquote>
+      <p style="font-weight:600;color:#374151;margin:0">— {{ q.author }}</p>
+      <p style="color:#9ca3af;font-size:0.8rem;margin-top:4px">
+        {{ q.createdAt | date:'mediumDate' }}
+      </p>
+    } @else {
+      <p style="color:#9ca3af;font-size:0.95rem">Select a quote to read it.</p>
+    }
+  </main>
+
+</div>
