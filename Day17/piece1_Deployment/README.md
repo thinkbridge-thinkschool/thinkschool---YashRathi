@@ -205,7 +205,16 @@ az containerapp update \
 
 ## Lighthouse score
 
-Target: ≥ 95 across Performance, Accessibility, Best Practices, SEO.
+Measured on live SWA URL: `https://yellow-meadow-0bd239f00.7.azurestaticapps.net/quotes`
+
+| Category | Score |
+|----------|-------|
+| Performance | 96 |
+| Accessibility | 100 |
+| Best Practices | 100 |
+| SEO | 91 |
+
+Screenshot: [screenshots/04-lighthouse-score.png](screenshots/04-lighthouse-score.png)
 
 Optimisations applied:
 - Production build with full tree-shaking and minification
@@ -214,6 +223,21 @@ Optimisations applied:
 - SEO meta tags: description, OG tags, Twitter Card, theme-color
 - Security headers via `staticwebapp.config.json`
 - Initial bundle: 367 kB raw / 94 kB gzipped (well under 500 kB budget)
+
+---
+
+## Screenshots
+
+| # | Screenshot | What it shows |
+|---|-----------|---------------|
+| 01 | [screenshots/01-tsc-zero-errors.png](screenshots/01-tsc-zero-errors.png) | TypeScript zero errors |
+| 02 | [screenshots/02-store-ngrx-rule.png](screenshots/02-store-ngrx-rule.png) | NgRx store rule |
+| 03 | [screenshots/03-browser-loading-state.png](screenshots/03-browser-loading-state.png) | Browser loading state |
+| 04 | [screenshots/04-lighthouse-score.png](screenshots/04-lighthouse-score.png) | Lighthouse 96/100/100/91 on live SWA URL |
+| 05 | [screenshots/05-quotes-list.png](screenshots/05-quotes-list.png) | Live quotes list — Shakespeare, Jobs, Wilde, Rowling loaded from Container Apps API |
+| 06 | [screenshots/06-login-page.png](screenshots/06-login-page.png) | Login page with test credentials |
+| 07 | [screenshots/07-quote-added.png](screenshots/07-quote-added.png) | "Quote added successfully" — POST /api/quotes working end-to-end |
+| 08 | [screenshots/08-search-filter.png](screenshots/08-search-filter.png) | Author search filter — "Yas" returns Yash Rathi's quote |
 
 ---
 
