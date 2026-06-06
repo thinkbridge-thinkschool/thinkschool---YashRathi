@@ -33,6 +33,19 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddProblemDetails();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SwaOrigins", policy =>
+    {
+        policy
+            .WithOrigins(
+                "https://yellow-meadow-0bd239f00.7.azurestaticapps.net",
+                "http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Push ASP.NET Core's TraceIdentifier into Serilog's log context
@@ -44,6 +57,8 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseSerilogRequestLogging();
+
+app.UseCors("SwaOrigins");
 
 app.UseMiddleware<ExceptionMiddleware>();
 
@@ -69,7 +84,8 @@ using (var scope = app.Services.CreateScope())
     }
 
     // Seed 20 authors × 10 quotes = 200 rows. Shuffled so every page shows a mix of authors.
-    if (!db.Quotes.Any())
+    // Skip in the Testing environment so integration tests start with an empty Quotes table.
+    if (!app.Environment.IsEnvironment("Testing") && !db.Quotes.Any())
     {
         var now = DateTimeOffset.UtcNow;
         var authorQuotes = new Dictionary<string, string[]>

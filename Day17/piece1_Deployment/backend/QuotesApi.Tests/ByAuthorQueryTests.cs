@@ -86,7 +86,7 @@ public class ByAuthorQueryTests : IAsyncLifetime
         data.Should().NotBeNull();
         data!.Count.Should().Be(20, "seed creates 20 distinct authors");
         data.Values.Should().AllSatisfy(quotes =>
-            quotes.Count.Should().Be(50, "each author has 50 seeded quotes"));
+            quotes.Count.Should().Be(10, "each author has 10 seeded quotes"));
     }
 
     // ── cache correctness ───────────────────────────────────────────────────
@@ -175,7 +175,7 @@ public class ByAuthorQueryTests : IAsyncLifetime
     private static async Task SeedContextAsync(
         AppDbContext context,
         int authorCount = 20,
-        int quotesPerAuthor = 50)
+        int quotesPerAuthor = 10)
     {
         if (await context.Quotes.AnyAsync()) return;
 

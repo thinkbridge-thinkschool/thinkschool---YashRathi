@@ -41,6 +41,11 @@ internal sealed class IntegrationFixture : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.UseEnvironment("Testing");
+        // Jwt__Key maps to Jwt:Key via ASP.NET Core's env-var convention.
+        // Must be set before the host builds so AddInfrastructure can read it.
+        Environment.SetEnvironmentVariable("Jwt__Key",
+            "super-secret-jwt-signing-key-must-be-32-bytes-min!!");
         builder.ConfigureServices(services =>
         {
             // EF Core 8+ registers IDbContextOptionsConfiguration<T> (the config delegate)
