@@ -1,0 +1,23 @@
+{
+  "name": "quotes-swa-api",
+  "version": "1.0.0",
+  "description": "SWA backend: acquires Managed Identity token and proxies requests to Container Apps API",
+  "main": "dist/src/functions/*.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "func start",
+    "prestart": "npm run build"
+  },
+  "dependencies": {
+    "@azure/functions": "^4.5.0",
+    "@azure/identity": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "~5.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

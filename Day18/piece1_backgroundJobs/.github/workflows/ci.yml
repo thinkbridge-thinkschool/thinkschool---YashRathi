@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build --logger "trx;LogFileName=test-results.trx" --collect:"XPlat Code Coverage" --results-directory TestResults
+        env:
+          RYUK_DISABLED: "true"
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/TestResults/**/*.trx
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: backend/TestResults/**/coverage.cobertura.xml
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Check coverage threshold
+        run: |
+          reportgenerator \
+            "-reports:TestResults/**/coverage.cobertura.xml" \
+            "-targetdir:CoverageReport" \
+            "-reporttypes:JsonSummary"
+
+          python3 - <<'EOF'
+          import json, sys
+          with open("CoverageReport/Summary.json") as f:
+              data = json.load(f)
+          cov = data["summary"]["linecoverage"]
+          print(f"Line coverage: {cov:.1f}%")
+          if cov < 70:
+              print(f"FAIL: {cov:.1f}% is below the required 70% threshold.")
+              sys.exit(1)
+          print(f"PASS: {cov:.1f}% >= 70% — threshold met.")
+          EOF
