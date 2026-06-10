@@ -46,10 +46,12 @@ import {
   submit,
   validate,
 } from '@angular/forms/signals';
+import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { QuoteCreateService } from './quote-create.service';
 import { CreateQuotePayload } from './quote-create.types';
 import { isAppError } from '../app-error';
+import { AuthService } from '../auth/auth.service';
 
 @Component({
   selector: 'app-quote-create',
@@ -58,11 +60,14 @@ import { isAppError } from '../app-error';
   templateUrl: './quote-create.component.html',
 })
 export class QuoteCreateComponent {
-  private svc = inject(QuoteCreateService);
+  private svc    = inject(QuoteCreateService);
+  private auth   = inject(AuthService);
+  private router = inject(Router);
 
-  submitSuccess = signal(false);
-  submitError   = signal<string | null>(null);
-  submitted     = signal(false); // true after first submit attempt; shows errors even if fields not blurred
+  submitSuccess  = signal(false);
+  submitError    = signal<string | null>(null);
+  submitted      = signal(false); // true after first submit attempt; shows errors even if fields not blurred
+  loginRequired  = signal(false);
 
   // Model signal — single source of truth for all field values.
   readonly quoteModel = signal({ author: '', text: '' });
@@ -103,6 +108,14 @@ export class QuoteCreateComponent {
 
   async onSubmit(event: Event): Promise<void> {
     event.preventDefault();
+
+    if (!this.auth.isLoggedIn()) {
+      this.loginRequired.set(true);
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    this.loginRequired.set(false);
     this.submitSuccess.set(false);
     this.submitError.set(null);
     this.submitted.set(true);

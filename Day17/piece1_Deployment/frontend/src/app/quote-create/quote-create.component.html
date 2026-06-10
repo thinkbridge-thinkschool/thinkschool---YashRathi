@@ -4,6 +4,12 @@
     Add a Quote
   </h2>
 
+  @if (loginRequired()) {
+    <div role="alert" style="color:#4338ca;margin-bottom:1rem">
+      Please sign in to add a quote.
+    </div>
+  }
+
   @if (submitSuccess()) {
     <div role="alert" style="color:#16a34a;margin-bottom:1rem">
       Quote added successfully.
@@ -37,6 +43,7 @@
                font-size:0.9rem;box-sizing:border-box"
         [style.border-color]="(submitted() || quoteForm.author().touched()) && quoteForm.author().invalid() ? '#dc2626' : '#d1d5db'"
       />
+
       @if ((submitted() || quoteForm.author().touched()) && quoteForm.author().invalid()) {
         <span
           id="author-error"

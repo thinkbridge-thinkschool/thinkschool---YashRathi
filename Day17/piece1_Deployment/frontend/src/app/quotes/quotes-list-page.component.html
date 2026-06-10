@@ -151,12 +151,10 @@
     </button>
   </nav>
 
-  <!-- Add Quote section — only for logged-in users -->
-  @if (auth.isLoggedIn()) {
-    <div class="add-quote-section">
-      <h2 class="add-quote-heading">Add a New Quote</h2>
-      <app-quote-create />
-    </div>
-  }
+  <!-- Add Quote section — always visible; submission requires auth -->
+  <div class="add-quote-section">
+    <h2 class="add-quote-heading">Add a New Quote</h2>
+    <app-quote-create />
+  </div>
 
 </main>
