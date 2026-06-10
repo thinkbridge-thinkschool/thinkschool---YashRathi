@@ -47,9 +47,11 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: Day17/piece1_Deployment/frontend
+          # Point directly at the pre-built output folder so the SWA action
+          # finds index.html without needing to resolve output_location itself.
+          app_location: Day17/piece1_Deployment/frontend/dist/quotes-ui/browser
           api_location: Day17/piece1_Deployment/api
-          output_location: dist/quotes-ui/browser
+          output_location: ""
           skip_app_build: true
           skip_api_build: false
         env:
