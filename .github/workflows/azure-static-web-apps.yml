@@ -1,0 +1,56 @@
+name: Deploy to Azure Static Web Apps
+
+on:
+  push:
+    branches:
+      - main
+
+# Only one deployment runs at a time; cancel in-progress runs on new push.
+concurrency:
+  group: swa-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build Angular + Deploy SWA
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Node.js setup ─────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Day17/piece1_Deployment/frontend/package-lock.json
+
+      # ── 3. Build Angular (production) ────────────────────────────────────────
+      # Outputs land in Day17/piece1_Deployment/frontend/dist/quotes-ui/browser/
+      - name: Install Angular dependencies
+        working-directory: Day17/piece1_Deployment/frontend
+        run: npm ci
+
+      - name: Build Angular — production
+        working-directory: Day17/piece1_Deployment/frontend
+        run: npm run build -- --configuration production
+
+      # ── 4. Deploy to Azure Static Web Apps ───────────────────────────────────
+      - name: Deploy to Azure SWA
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: Day17/piece1_Deployment/frontend
+          api_location: Day17/piece1_Deployment/api
+          output_location: dist/quotes-ui/browser
+          skip_app_build: true
+          skip_api_build: false
+        env:
+          API_SCOPE: ${{ vars.API_SCOPE }}
