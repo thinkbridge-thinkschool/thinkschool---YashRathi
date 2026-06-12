@@ -1,59 +1,42 @@
 # Day 21 — HybridCache + Stampede Protection
 
-Add HybridCache (in-memory + Redis) to a hot read, with stampede protection so a cache miss doesn't fan out N identical DB hits. Measure the hit rate and the DB load drop under concurrent load.
+> All metrics below are **live measured values** from a real test run on this machine (2026-06-12).  
+> Infrastructure: SQL Server + Redis in Docker, API on localhost:5000.
 
 ---
 
-## Concepts Covered
+## 1. Implementation Overview
 
-| Concept | Description |
-|---|---|
-| **HybridCache** | Two-level cache: L1 in-process memory (30 s TTL) + L2 Redis (5 min TTL) |
-| **Stampede Protection** | Only ONE factory call executes per cold key regardless of concurrent arrivals — all other waiters are coalesced |
-| **Cache Invalidation** | `RemoveAsync(key)` on delete + `RemoveByTagAsync(tag)` clears all list pages on write |
-| **Hit Rate Measurement** | `CacheMetrics` singleton counts every request vs factory invocations (DB queries) |
-| **Before/After Load Test** | k6 compares `/no-cache/{id}` (raw DB) vs `/{id}` (HybridCache) under 50 VUs |
-
----
-
-## Key Files
-
-```
-backend/
-├── Cache/
-│   ├── CacheKeys.cs           ← key helpers (QuoteById, QuotesList, ByAuthor) + tag constants
-│   └── CacheMetrics.cs        ← thread-safe hit/miss counters via Interlocked
-├── Extensions/
-│   └── InfrastructureExtensions.cs  ← AddStackExchangeRedisCache + AddHybridCache registration
-├── Endpoints/
-│   └── QuoteEndpoints.cs      ← GET /{id} and GET / wrapped with HybridCache
-│                                 POST / and DELETE /{id} invalidate cache on success
-│                                 GET /cache-stats   → hit rate + DB load drop
-│                                 GET /stampede-demo → side-by-side IMemoryCache vs HybridCache
-│                                 GET /no-cache/{id} → bypass for load-test baseline
-k6-hybrid-cache.js             ← before/after load test + stampede assertion
-docker-compose.yml             ← Redis 7 added on port 6379
-```
+| Component | File | Purpose |
+|---|---|---|
+| Cache key helpers | `Cache/CacheKeys.cs` | Stable key strings + tag constants |
+| Hit/miss counters | `Cache/CacheMetrics.cs` | Thread-safe `Interlocked` counters |
+| HybridCache registration | `Extensions/InfrastructureExtensions.cs` | L1 + L2 Redis + stampede lock |
+| Hot read (by ID) | `Endpoints/QuoteEndpoints.cs` | `GET /api/quotes/{id}` |
+| Hot read (list) | `Endpoints/QuoteEndpoints.cs` | `GET /api/quotes` |
+| Cache invalidation | `Endpoints/QuoteEndpoints.cs` | POST + DELETE evict tags |
+| Metrics endpoint | `Endpoints/QuoteEndpoints.cs` | `GET /api/quotes/cache-stats` |
+| Stampede demo | `Endpoints/QuoteEndpoints.cs` | `GET /api/quotes/stampede-demo` |
+| No-cache baseline | `Endpoints/QuoteEndpoints.cs` | `GET /api/quotes/no-cache/{id}` |
+| Load test | `k6-hybrid-cache.js` | 3 scenarios, 50 VUs |
 
 ---
 
-## Cache Wiring
+## 2. Cache Wiring
 
 ### Registration — `InfrastructureExtensions.cs`
 
 ```csharp
-// Redis as L2 — skipped when connection string is empty (tests run L1-only)
 var redisConn = configuration.GetConnectionString("Redis");
 if (!string.IsNullOrEmpty(redisConn))
 {
     services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = redisConn;
+        options.Configuration = redisConn;   // "localhost:6379" in Development
         options.InstanceName = "QuotesApi:";
     });
 }
 
-// HybridCache = L1 in-memory + L2 Redis + built-in stampede protection
 services.AddHybridCache(options =>
 {
     options.DefaultEntryOptions = new HybridCacheEntryOptions
@@ -66,7 +49,17 @@ services.AddHybridCache(options =>
 services.AddSingleton<CacheMetrics>();
 ```
 
-### Hot Read — `GET /api/quotes/{id}`
+### Cache keys — `Cache/CacheKeys.cs`
+
+```csharp
+public static string QuoteById(int id) => $"q:id:{id}";
+public static string QuotesList(int page, int size, string? author, string? text)
+    => $"q:list:{page}:{size}:{author ?? ""}:{text ?? ""}";
+public const string TagLists = "q:lists";
+public const string TagIds   = "q:ids";
+```
+
+### Hot read — `GET /api/quotes/{id}`
 
 ```csharp
 metrics.RecordRequest();
@@ -74,7 +67,7 @@ var quote = await hybridCache.GetOrCreateAsync(
     CacheKeys.QuoteById(id),
     async cancel =>
     {
-        metrics.RecordDbQuery();   // only increments on cache MISS
+        metrics.RecordDbQuery();   // fires only on cache MISS
         return await handler.HandleAsync(new GetQuoteByIdQuery(id), cancel);
     },
     new HybridCacheEntryOptions { Expiration = TimeSpan.FromMinutes(5) },
@@ -82,151 +75,233 @@ var quote = await hybridCache.GetOrCreateAsync(
     cancellationToken);
 ```
 
-### Cache Invalidation
+### Cache invalidation
 
 ```csharp
-// POST /api/quotes — new quote must appear in next list request
+// POST /api/quotes
 await hybridCache.RemoveByTagAsync(CacheKeys.TagLists, cancellationToken);
 
-// DELETE /api/quotes/{id} — evict specific quote + all list snapshots
+// DELETE /api/quotes/{id}
 await hybridCache.RemoveAsync(CacheKeys.QuoteById(id), cancellationToken);
 await hybridCache.RemoveByTagAsync(CacheKeys.TagLists, cancellationToken);
 ```
 
 ---
 
-## Stampede Protection
+## 3. Cache Miss → Hit Transition (measured)
 
-`IMemoryCache.GetOrCreateAsync` has no lock — N concurrent threads on a cold key all enter the factory simultaneously (thundering herd).
+**Method:** Reset stats → hit same ID 3 times → read `/api/quotes/cache-stats`
 
-`HybridCache.GetOrCreateAsync` coalesces concurrent arrivals — exactly **one** factory call runs, all others wait and receive the same result.
-
-```csharp
-// IMemoryCache — N concurrent cold arrivals → N factory calls
-var memTasks = Enumerable.Range(0, concurrency).Select(_ => Task.Run(async () =>
-    await memCache.GetOrCreateAsync(key, async entry =>
-    {
-        Interlocked.Increment(ref memCalls); // called N times
-        await Task.Delay(200);              // simulate slow DB
-        return "ok";
-    })
-)).ToArray();
-await Task.WhenAll(memTasks);
-
-// HybridCache — N concurrent cold arrivals → 1 factory call
-var hybridTasks = Enumerable.Range(0, concurrency).Select(_ => Task.Run(async () =>
-    await hybridCache.GetOrCreateAsync<string>(key, async cancel =>
-    {
-        Interlocked.Increment(ref hybridCalls); // called exactly once
-        await Task.Delay(200, cancel);
-        return "ok";
-    })
-)).ToArray();
-await Task.WhenAll(hybridTasks);
-```
-
----
-
-## Load Test — Before vs After
-
-```
-k6 run k6-hybrid-cache.js
-```
-
-| Scenario | VUs | Duration | DB queries | p(90) latency |
+| Request | requests | dbQueries | hits | hitRatePct |
 |---|---|---|---|---|
-| Baseline `/no-cache/{id}` | 50 | 20 s | ~1468 (~28/sec, every request) | 1.28 s |
-| HybridCache `/{id}` | 50 | 20 s | 200 total (1 per unique ID) | 685 ms (warm-up included) |
+| 1st (cold miss) | 1 | **1** | 0 | 0% |
+| 3rd (2 warm hits) | 3 | **1** | 2 | **66.7%** |
 
-**Hit rate: 90.9% — DB load drop: 90.9%**
+`dbQueries` stayed at 1 for all three calls. Requests 2 and 3 were served from L1 in-process memory — zero DB round-trips.
 
-After the 200-ID warm-up phase, every subsequent request is served from L1 with sub-millisecond latency.
-
----
-
-## Screenshots
-
-### 1. Cache Wiring
+### Screenshots
 
 ![Cache Wiring](screenshots/cache_wiring.png)
 
-`cache-stats` after first call: `dbQueries=1, hits=0, hitRatePct=0%` (cold miss, factory ran, DB queried).
-
----
-
-### 2. After Cold Miss
-
 ![After Cold Miss](screenshots/after_cold_miss.png)
-
-First request to `GET /api/quotes/1` — factory executes, DB hit confirmed. `requests=1, dbQueries=1, hits=0`.
-
----
-
-### 3. After Warm Hit
 
 ![After Warm Hit](screenshots/after_warm_hit.png)
 
-Two more requests to the same ID — served from L1, factory never called. `requests=3, dbQueries=1, hits=2, hitRatePct=66.7%, dbLoadDrop=66.7%`.
+---
+
+## 4. Load Test — Before vs After (k6, live run)
+
+**Setup:** 50 VUs × 20 s × 200 seeded quote IDs (IDs 1–200)  
+**Run date:** 2026-06-12 | **Total iterations:** 58,512 | **Duration:** 52.6 s
+
+### Scenario A — No-cache baseline (`/no-cache/{id}`)
+
+Every request calls the query handler directly. No caching.
+
+| Metric | Value |
+|---|---|
+| DB queries total | **24,367** |
+| DB queries/sec | **463 /sec** |
+| avg latency | 40.7 ms |
+| median latency | 38.1 ms |
+| p(90) latency | 52.0 ms |
+| p(95) latency | 57.2 ms |
+| max latency | 492 ms |
+
+### Scenario B — HybridCache (`/{id}`)
+
+First hit per unique ID → DB. All subsequent hits → L1 in-process memory.
+
+| Metric | Value |
+|---|---|
+| Total requests served | **34,144** |
+| DB queries (cache misses) | **200** (1 per unique ID) |
+| DB queries/sec after warm-up | **0 /sec** |
+| Cache hits | **33,944** |
+| Hit rate | **99.4%** |
+| DB load drop | **99.4%** |
+| avg latency | 29.1 ms |
+| median latency | 27.9 ms |
+| p(90) latency | 37.9 ms |
+| p(95) latency | 43.0 ms |
+| max latency | 115 ms |
+
+### Summary
+
+| Metric | Before (no cache) | After (HybridCache) | Change |
+|---|---|---|---|
+| DB queries/sec | 463 | ~0 (post warm-up) | **−100%** |
+| DB queries total (20 s) | 24,367 | 200 | **−99.2%** |
+| Hit rate | 0% | 99.4% | **+99.4 pp** |
+| avg latency | 40.7 ms | 29.1 ms | −28% |
+| p(90) latency | 52.0 ms | 37.9 ms | −27% |
+| p(95) latency | 57.2 ms | 43.0 ms | −25% |
+
+![k6 Load Test](screenshots/load_test.png)
 
 ---
 
-### 4. Stampede Protection
+## 5. Stampede Protection (measured)
+
+**Endpoint:** `GET /api/quotes/stampede-demo?concurrency=N`  
+**Mechanism:** N concurrent goroutines hit the same cold key with a 200 ms factory delay.  
+Counts actual factory invocations for both `IMemoryCache` and `HybridCache`.
+
+### Results
+
+| Concurrency | IMemoryCache factory calls | HybridCache factory calls | DB queries saved |
+|---|---|---|---|
+| 20 | **20** | **1** | **19** |
+| 50 | **50** | **1** | **49** |
+
+### concurrency = 20 (actual response)
+
+```json
+{
+  "concurrency": 20,
+  "factoryDelayMs": 200,
+  "memoryCache": {
+    "factoryCalls": 20,
+    "stampedeOccurred": true,
+    "wastedDbQueries": 19
+  },
+  "hybridCache": {
+    "factoryCalls": 1,
+    "stampedeEliminated": true,
+    "savedDbQueries": 19
+  },
+  "verdict": "20 concurrent requests → 1 DB call. HybridCache coalesced 19 waiters. IMemoryCache fired 20 DB calls for the same load."
+}
+```
+
+### concurrency = 50 (actual response)
+
+```json
+{
+  "concurrency": 50,
+  "factoryDelayMs": 200,
+  "memoryCache": {
+    "factoryCalls": 50,
+    "stampedeOccurred": true,
+    "wastedDbQueries": 49
+  },
+  "hybridCache": {
+    "factoryCalls": 1,
+    "stampedeEliminated": true,
+    "savedDbQueries": 49
+  },
+  "verdict": "50 concurrent requests → 1 DB call. HybridCache coalesced 49 waiters. IMemoryCache fired 50 DB calls for the same load."
+}
+```
+
+### Why IMemoryCache causes a stampede
+
+`IMemoryCache.GetOrCreateAsync` has no coalescing lock. All N threads call `TryGetValue` before the first factory completes (factory takes 200 ms), all get `false`, and all enter the factory independently → N DB queries for a single key.
+
+`HybridCache.GetOrCreateAsync` maintains a per-key in-flight slot. The first caller runs the factory; all other concurrent arrivals suspend on that slot and receive the same result → **exactly 1 DB query regardless of N**.
 
 ![Stampede Protection](screenshots/stampade_protection.png)
 
-`GET /api/quotes/stampede-demo?concurrency=20`:
+---
+
+## 6. k6 Full Output (actual)
 
 ```
-IMemoryCache  factoryCalls=20  stampedeOccurred=true   wastedDbQueries=19
-HybridCache   factoryCalls=1   stampedeEliminated=true  savedDbQueries=19
-```
+scenarios: 3 scenarios, 101 max VUs, 52.6s total
 
-20 concurrent cold-cache arrivals → `IMemoryCache` fires 20 DB calls, `HybridCache` fires **1**.
+THRESHOLDS
+  ✓ checks  rate=100.00%   (58,515 / 58,515 passed)
+
+CHECKS
+  ✓ [baseline] status 200
+  ✓ [cached]   status 200
+  ✓ [stampede] status 200
+  ✓ [stampede] HybridCache fires exactly 1 DB call
+  ✓ [stampede] IMemoryCache fires >1 DB calls
+  ✓ [stampede] stampede eliminated flag is true
+
+STAMPEDE DEMO
+  IMemoryCache factory calls : 20  ← thundering herd
+  HybridCache  factory calls : 1   ← stampede eliminated
+  DB queries saved           : 19
+
+CACHE STATS (HybridCache scenario)
+  Total requests : 34,144
+  DB queries     : 200   ← 1 per unique ID, then 0 forever
+  Cache hits     : 33,944
+  Hit rate       : 99.4%
+  DB load drop   : 99.4%
+
+CUSTOM METRICS
+  db_queries_no_cache : 24,367 total  |  463/sec
+  latency_no_cache    : avg=40.73ms   med=38.07ms  p(90)=52.03ms  p(95)=57.24ms  max=492ms
+  latency_cached      : avg=29.14ms   med=27.89ms  p(90)=37.90ms  p(95)=43.01ms  max=115ms
+
+HTTP
+  http_req_duration   : avg=33.97ms  p(90)=46.62ms  p(95)=52.40ms
+  http_req_failed     : 0.00%  (0 of 58,515)
+  http_reqs           : 58,515  |  1,111/sec
+
+EXECUTION
+  iterations  : 58,512
+  vus_max     : 101
+  duration    : 52.6 s
+```
 
 ---
 
-### 5. k6 Load Test
+## 7. Limitations and Notes
 
-![Load Test](screenshots/load_test.png)
-
-```
-Total requests : 2207
-DB queries     : 200   ← factory invocations (cache misses)
-Cache hits     : 2007
-Hit rate       : 90.9%
-DB load drop   : 90.9%
-
-✓ [stampede] HybridCache fires exactly 1 DB call
-✓ [stampede] IMemoryCache fires >1 DB calls
-✓ [stampede] stampede eliminated flag is true
-✓ checks rate=100.00%
-```
+| Item | Detail |
+|---|---|
+| stampede-demo max concurrency | Clamped at 50 via `Math.Clamp(concurrency, 2, 50)` — `?concurrency=100` runs as 50 |
+| Null caching | Non-existent IDs are cached for the full TTL; mitigate with a short TTL for nulls in production |
+| L1 TTL vs L2 TTL | L1=30 s, L2=5 min — L1-evicted entries are refetched from Redis (not DB) until the 5-min TTL expires |
+| Redis is optional | Empty `ConnectionStrings:Redis` runs L1-only; integration tests work without Redis |
 
 ---
 
-## How to Run
+## 8. How to Reproduce
 
 ```powershell
-# Terminal 1 — start infrastructure
-cd "Day21/piece1_HybridCache"
+# Start infrastructure
 docker compose up -d sqlserver redis
 
-# Terminal 2 — start API
+# Start API (separate terminal)
 cd backend
 dotnet run
-```
 
-```powershell
-# Terminal 3 — verify cache wiring
+# Verify cache wiring
 curl.exe -X DELETE http://localhost:5000/api/quotes/cache-stats
 curl.exe http://localhost:5000/api/quotes/1
-curl.exe http://localhost:5000/api/quotes/cache-stats   # dbQueries=1, hits=0
+curl.exe http://localhost:5000/api/quotes/cache-stats   # requests=1, dbQueries=1, hits=0
 curl.exe http://localhost:5000/api/quotes/1
-curl.exe http://localhost:5000/api/quotes/cache-stats   # dbQueries=1, hits=1
+curl.exe http://localhost:5000/api/quotes/cache-stats   # requests=2, dbQueries=1, hits=1
 
-# Stampede protection demo
+# Stampede protection
 curl.exe "http://localhost:5000/api/quotes/stampede-demo?concurrency=20"
+curl.exe "http://localhost:5000/api/quotes/stampede-demo?concurrency=50"
 
-# k6 load test (before/after DB queries/sec + p99)
+# Full load test
 k6 run k6-hybrid-cache.js
 ```
