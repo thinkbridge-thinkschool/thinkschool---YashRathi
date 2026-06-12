@@ -1,0 +1,70 @@
+name: Deploy to Azure Static Web Apps
+
+on:
+  push:
+    branches:
+      - main
+
+# Only one deployment runs at a time; cancel in-progress runs on new push.
+concurrency:
+  group: swa-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build Angular + Deploy SWA
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Node.js setup ─────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── 3. Build Angular (production) ────────────────────────────────────────
+      # Outputs land in frontend/dist/quotes-ui/browser/
+      # staticwebapp.config.json is copied there automatically (it's in public/).
+      - name: Install Angular dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Angular — production
+        working-directory: frontend
+        run: npm run build -- --configuration production
+
+      # ── 4. Deploy to Azure Static Web Apps ───────────────────────────────────
+      # AZURE_STATIC_WEB_APPS_API_TOKEN is the ONLY secret used here.
+      # It is a deployment credential, NOT an API key or client secret.
+      # No Managed Identity logic lives here — MI is acquired at runtime
+      # inside the api/ Azure Function, server-side only.
+      - name: Deploy to Azure SWA
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          # app_location: root of the Angular source tree
+          app_location: frontend
+          # api_location: Azure Functions folder (built by the SWA action)
+          api_location: api
+          # output_location: path to the built browser bundle, relative to app_location
+          output_location: dist/quotes-ui/browser
+          # Angular was already built above; skip the SWA action's own app build
+          skip_app_build: true
+          # The SWA action builds the Azure Functions (api/) automatically
+          skip_api_build: false
+        env:
+          # Make the API scope available to the function at runtime.
+          # This is a public Azure AD resource identifier — NOT a secret.
+          # Set it in GitHub Actions variables (Settings → Secrets and variables
+          # → Actions → Variables), not in Secrets.
+          API_SCOPE: ${{ vars.API_SCOPE }}

@@ -1,0 +1,162 @@
+<!-- ═══ TOP BAR ═══ -->
+<div class="topbar">
+  <span class="topbar-brand">✦ Quotes Explorer</span>
+  @if (auth.isLoggedIn()) {
+    <button (click)="logout()" class="signout-btn">Sign out</button>
+  } @else {
+    <a routerLink="/login" class="signout-btn" style="text-decoration:none">Sign in</a>
+  }
+</div>
+
+<!-- ═══ HERO HEADER ═══ -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-badge">✦ Daily Wisdom</div>
+    <h1 class="hero-title">Quotes Explorer</h1>
+    <p class="hero-subtitle">{{ summary() }}</p>
+
+    <div class="search-row">
+
+      <div class="search-box">
+        <label class="search-label">By Author</label>
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"/>
+          </svg>
+          <input
+            type="text"
+            [ngModel]="authorSearch()"
+            (ngModelChange)="onAuthorChange($event)"
+            placeholder="e.g. Einstein, Rumi..."
+            class="search-input"
+          />
+          @if (authorSearch()) {
+            <button class="clear-btn" (click)="onAuthorChange('')">✕</button>
+          }
+        </div>
+      </div>
+
+      <div class="search-divider"><span>and</span></div>
+
+      <div class="search-box">
+        <label class="search-label">By Quote</label>
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M18 13V5a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2h3l3 3 3-3h3a2 2 0 002-2zM5 7a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H6z" clip-rule="evenodd"/>
+          </svg>
+          <input
+            type="text"
+            [ngModel]="quoteSearch()"
+            (ngModelChange)="onQuoteChange($event)"
+            placeholder="e.g. courage, love..."
+            class="search-input"
+          />
+          @if (quoteSearch()) {
+            <button class="clear-btn" (click)="onQuoteChange('')">✕</button>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    @if (authorSearch() || quoteSearch()) {
+      <button class="clear-all-btn" (click)="clearAll()">✕ Clear all filters</button>
+    }
+
+  </div>
+</header>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<main class="main">
+
+  <!-- Active filter chips -->
+  @if (authorSearch() || quoteSearch()) {
+    <div class="filter-chips">
+      @if (authorSearch()) {
+        <span class="chip chip-author">
+          👤 Author: {{ authorSearch() }}
+          <button (click)="onAuthorChange('')">✕</button>
+        </span>
+      }
+      @if (quoteSearch()) {
+        <span class="chip chip-quote">
+          💬 Quote: {{ quoteSearch() }}
+          <button (click)="onQuoteChange('')">✕</button>
+        </span>
+      }
+    </div>
+  }
+
+  <!-- Loading banner -->
+  @if (isLoading()) {
+    <div class="loading-banner">
+      <div class="spinner"></div>
+      <span>Fetching quotes...</span>
+    </div>
+  }
+
+  <!-- State machine -->
+  @switch (viewState()) {
+    @case ('loading') { }
+
+    @case ('error') {
+      <div class="error-card">
+        <div class="error-icon">⚠</div>
+        <p class="error-msg">{{ errorMessage() }}</p>
+        <button class="btn btn-primary" (click)="loadQuotes(currentPage(), pageSize(), authorSearch(), quoteSearch())">
+          Try Again
+        </button>
+      </div>
+    }
+
+    @default {
+      <div class="quotes-grid">
+        @for (quote of quotes(); track quote.id) {
+          <article class="quote-card" [routerLink]="['/quotes', quote.id]">
+            <span class="quote-mark">"</span>
+            <p class="quote-text">{{ quote.text }}</p>
+            <footer class="quote-footer">
+              <div class="author-avatar">{{ quote.author[0] }}</div>
+              <div class="author-details">
+                <strong class="author-name">{{ quote.author }}</strong>
+                <span class="quote-date">{{ quote.createdAt.slice(0, 10) }}</span>
+              </div>
+              <span class="view-hint">View →</span>
+            </footer>
+          </article>
+        } @empty {
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            @if (hasActiveFilter()) {
+              <p>No quotes found for your search.</p>
+              <button class="btn btn-outline" (click)="clearAll()">Clear all filters</button>
+            } @else {
+              <p>You've reached the last page.</p>
+              <button class="btn btn-outline" (click)="previousPage()">← Go back</button>
+            }
+          </div>
+        }
+      </div>
+    }
+  }
+
+  <!-- Pagination -->
+  <nav class="pagination">
+    <button class="btn btn-page" (click)="previousPage()" [disabled]="currentPage() === 1">
+      ← Previous
+    </button>
+    <span class="page-pill">{{ currentPage() }}</span>
+    <button class="btn btn-page" (click)="nextPage()" [disabled]="!hasMore()">
+      Next →
+    </button>
+  </nav>
+
+  <!-- Add Quote section — only for logged-in users -->
+  @if (auth.isLoggedIn()) {
+    <div class="add-quote-section">
+      <h2 class="add-quote-heading">Add a New Quote</h2>
+      <app-quote-create />
+    </div>
+  }
+
+</main>
