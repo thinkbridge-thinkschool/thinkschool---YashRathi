@@ -1,0 +1,71 @@
+services:
+  # ── SQL Server for the Service Bus Emulator ─────────────────────────────────
+  sqledge-sb:
+    image: mcr.microsoft.com/azure-sql-edge
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "SbDev@Pass1"
+    ports:
+      - "1434:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P SbDev@Pass1 -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  # ── Azure Service Bus Emulator ───────────────────────────────────────────────
+  servicebus-emulator:
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:latest
+    depends_on:
+      sqledge-sb:
+        condition: service_healthy
+    ports:
+      - "5672:5672"
+    volumes:
+      - "./ServiceBusDemo/emulator-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "SbDev@Pass1"
+      SQL_SERVER: "sqledge-sb"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 5672 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: "Dev@Password1"
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Dev@Password1 -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s

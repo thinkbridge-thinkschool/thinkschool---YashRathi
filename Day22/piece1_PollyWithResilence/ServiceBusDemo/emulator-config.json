@@ -1,0 +1,37 @@
+{
+  "UserConfig": {
+    "Namespaces": [
+      {
+        "Name": "emulatorNs1",
+        "Queues": [],
+        "Topics": [
+          {
+            "Name": "quotes-topic",
+            "Properties": {
+              "RequiresDuplicateDetection": false
+            },
+            "Subscriptions": [
+              {
+                "Name": "sub-analytics",
+                "Properties": {
+                  "MaxDeliveryCount": 5,
+                  "LockDuration": "PT30S"
+                }
+              },
+              {
+                "Name": "sub-notifications",
+                "Properties": {
+                  "MaxDeliveryCount": 3,
+                  "LockDuration": "PT5S"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "Logging": {
+      "Type": "File"
+    }
+  }
+}
